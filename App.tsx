@@ -4,7 +4,7 @@ import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { ThemePreview } from './components/ThemePreview';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE } from './types';
-import { ChevronLeft, ChevronRight, Upload, Sparkles, Wand2, Type, Palette, Image as ImageIcon, Download, Layers, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Upload, Sparkles, Wand2, Type, Palette, Image as ImageIcon, Download, Layers, RefreshCw, Eye, Settings } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -60,6 +60,9 @@ const App: React.FC = () => {
   // Editing State (Per-slide overrides)
   const [slideStyles, setSlideStyles] = useState<Record<number, SlideStyle>>({});
   const [loadingSlides, setLoadingSlides] = useState<Record<number, boolean>>({});
+
+  // Mobile State
+  const [mobileView, setMobileView] = useState<'controls' | 'preview'>('preview');
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -249,10 +252,10 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
-      
+    <div className="flex flex-col md:flex-row h-screen w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
+
       {/* --- LEFT SIDEBAR (Controls) --- */}
-      <div className="w-[420px] h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex flex-col shadow-2xl z-20 overflow-hidden relative">
+      <div className={`${mobileView === 'controls' ? 'flex' : 'hidden'} md:flex w-full md:w-[420px] h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex-col shadow-2xl z-20 overflow-hidden relative`}>
         <div className="p-6 border-b border-gray-100 bg-white/50">
            <div className="flex items-center gap-2 mb-1">
              <div className="w-8 h-8 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white shadow-lg">
@@ -475,11 +478,11 @@ const App: React.FC = () => {
       </div>
 
       {/* --- RIGHT AREA (PREVIEW) --- */}
-      <div className="flex-1 h-full relative flex flex-col items-center justify-center overflow-hidden">
+      <div className={`${mobileView === 'preview' ? 'flex' : 'hidden'} md:flex flex-1 h-full relative flex-col items-center justify-center overflow-hidden`}>
          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 z-0"></div>
          <div className="absolute top-[-20%] left-[-20%] w-[800px] h-[800px] bg-purple-200/40 rounded-full blur-[120px] pointer-events-none"></div>
          
-         <div className="relative z-10 scale-[0.9] lg:scale-100 transition-transform duration-500">
+         <div className="relative z-10 scale-[0.5] sm:scale-[0.65] md:scale-[0.75] lg:scale-[0.9] xl:scale-100 transition-transform duration-500">
              <PhoneFrame username={username} isDark={true}>
                <SlideCard 
                   data={currentSlideData}
@@ -496,26 +499,52 @@ const App: React.FC = () => {
              </PhoneFrame>
 
              {/* Navigation */}
-             <button 
+             <button
                 onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
-                className="absolute top-1/2 -left-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                className="absolute top-1/2 left-2 sm:left-4 md:-left-20 lg:-left-24 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none z-20"
                 disabled={activeSlideIndex === 0}
               >
-                <ChevronLeft size={32} />
+                <ChevronLeft size={20} className="sm:w-6 sm:h-6 md:w-8 md:h-8" />
               </button>
-              <button 
+              <button
                 onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
-                className="absolute top-1/2 -right-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                className="absolute top-1/2 right-2 sm:right-4 md:-right-20 lg:-right-24 -translate-y-1/2 w-10 h-10 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none z-20"
                 disabled={activeSlideIndex === slides.length - 1}
               >
-                <ChevronRight size={32} />
+                <ChevronRight size={20} className="sm:w-6 sm:h-6 md:w-8 md:h-8" />
               </button>
          </div>
 
          {/* Badge */}
-         <div className="absolute bottom-8 px-6 py-2 bg-white/60 backdrop-blur-md rounded-full shadow-lg text-sm font-bold text-slate-600 border border-white/50">
+         <div className="absolute bottom-24 md:bottom-8 px-4 py-1.5 md:px-6 md:py-2 bg-white/60 backdrop-blur-md rounded-full shadow-lg text-xs md:text-sm font-bold text-slate-600 border border-white/50">
             Слайд {activeSlideIndex + 1} из {slides.length}
          </div>
+      </div>
+
+      {/* --- MOBILE NAVIGATION TOGGLE --- */}
+      <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex gap-2 bg-white/90 backdrop-blur-lg rounded-full p-2 shadow-2xl border border-white">
+        <button
+          onClick={() => setMobileView('preview')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all ${
+            mobileView === 'preview'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Eye size={18} />
+          Превью
+        </button>
+        <button
+          onClick={() => setMobileView('controls')}
+          className={`flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all ${
+            mobileView === 'controls'
+              ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Settings size={18} />
+          Настройки
+        </button>
       </div>
 
     </div>
