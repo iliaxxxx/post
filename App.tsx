@@ -1,19 +1,22 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { generateCarouselContent, regenerateSlideContent, generateBackgroundImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { ThemePreview } from './components/ThemePreview';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, TextSize, TextAlign } from './types';
-import { 
-  Sparkles, Download, Share2, Plus, Copy, Trash2, 
-  Type, Image as ImageIcon, Palette, Layers, 
+import {
+  Sparkles, Download, Share2,
+  Type, Image as ImageIcon, Palette,
   ChevronLeft, ChevronRight, Wand2, RefreshCw, Upload, AlignLeft, AlignCenter, AlignRight, Check,
-  RotateCw, LayoutGrid, Zap, Smile, Briefcase, Type as FontIcon, Droplets, Sun, Moon
+  LayoutGrid, Droplets
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
+import { COLORS, GRADIENTS, FONTS, EXPORT_CONFIG } from './constants';
+import { getToneFromValue, getValueFromTone, getCurrentToneInfo } from './utils/toneHelpers';
+import { readMultipleFiles } from './utils/imageHelpers';
 
 const PREVIEW_DATA: SlideData = {
   number: 1,
@@ -21,36 +24,6 @@ const PREVIEW_DATA: SlideData = {
   content: "Это предпросмотр выбранного стиля. Сгенерированный контент появится здесь.",
   highlight: "Акцент",
   cta: "Призыв к действию"
-};
-
-// Helper for Tone Slider
-const TONE_MAP = [
-  { val: 0, tone: Tone.EXPERT, label: "Экспертный", icon: "🎓", desc: "Строгий, профессиональный" },
-  { val: 25, tone: Tone.EMPATHETIC, label: "Заботливый", icon: "🤗", desc: "Мягкий, с поддержкой" },
-  { val: 50, tone: Tone.VIRAL, label: "Вирусный", icon: "⚡", desc: "Коротко, хайпово" },
-  { val: 75, tone: Tone.PROVOCATIVE, label: "Дерзкий", icon: "🔥", desc: "С вызовом, триггеры" },
-  { val: 100, tone: Tone.FUNNY, label: "С юмором", icon: "🤪", desc: "Ирония и шутки" },
-];
-
-const FONTS = [
-  { name: 'Inter', family: "'Inter', sans-serif", label: "Modern Sans" },
-  { name: 'Montserrat', family: "'Montserrat', sans-serif", label: "Geometric" },
-  { name: 'Bebas Neue', family: "'Bebas Neue', sans-serif", label: "Display Bold" },
-  { name: 'Playfair Display', family: "'Playfair Display', serif", label: "Elegant Serif" },
-  { name: 'Merriweather', family: "'Merriweather', serif", label: "Readable Serif" },
-  { name: 'Roboto Slab', family: "'Roboto Slab', serif", label: "Strong Slab" },
-];
-
-const getToneFromValue = (value: number): Tone => {
-  // Find closest
-  const closest = TONE_MAP.reduce((prev, curr) => {
-    return (Math.abs(curr.val - value) < Math.abs(prev.val - value) ? curr : prev);
-  });
-  return closest.tone;
-};
-
-const getValueFromTone = (tone: Tone): number => {
-  return TONE_MAP.find(t => t.tone === tone)?.val || 0;
 };
 
 const App: React.FC = () => {
@@ -87,20 +60,16 @@ const App: React.FC = () => {
 
   // --- INITIALIZATION ---
 
+  // Optimized font loading - use standard link tag instead of fetch
   useEffect(() => {
     const linkId = 'google-fonts-stylesheet';
     if (!document.getElementById(linkId)) {
-      // Added Montserrat, Bebas Neue, Playfair Display, Merriweather, Roboto Slab
-      const url = 'https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&family=Montserrat:wght@400;600;800&family=Outfit:wght@300;500;700;900&family=Playfair+Display:wght@400;700&family=Roboto+Slab:wght@400;700&display=swap';
-      fetch(url)
-        .then(res => res.text())
-        .then(css => {
-          const style = document.createElement('style');
-          style.id = linkId;
-          style.textContent = css;
-          document.head.appendChild(style);
-        })
-        .catch(err => console.error("Failed to load fonts", err));
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.rel = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&family=Montserrat:wght@400;600;800&family=Outfit:wght@300;500;700;900&family=Playfair+Display:wght@400;700&family=Roboto+Slab:wght@400;700&display=swap';
+      link.onerror = () => console.error("Failed to load Google Fonts");
+      document.head.appendChild(link);
     }
   }, []);
 
@@ -112,39 +81,45 @@ const App: React.FC = () => {
   // Apply default styles when slides are created
   useEffect(() => {
     if (slides.length > 0) {
-      const newStyles = { ...slideStyles };
-      let changed = false;
-      slides.forEach(s => {
-        if (!newStyles[s.number]) {
-          newStyles[s.number] = { ...DEFAULT_STYLE };
-          changed = true;
-        }
+      setSlideStyles(prev => {
+        const newStyles = { ...prev };
+        let changed = false;
+        slides.forEach(s => {
+          if (!newStyles[s.number]) {
+            newStyles[s.number] = { ...DEFAULT_STYLE };
+            changed = true;
+          }
+        });
+        return changed ? newStyles : prev;
       });
-      if (changed) setSlideStyles(newStyles);
     }
   }, [slides]);
 
   // --- HANDLERS ---
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     if (!config.topic.trim()) return;
     setIsLoading(true);
     setError(null);
     setSlides([]);
     setSlideStyles({});
     setActiveSlideIndex(0);
-    
+
     try {
       const generatedSlides = await generateCarouselContent(config.topic, config.slideCount, config.tone);
+      if (!Array.isArray(generatedSlides) || generatedSlides.length === 0) {
+        throw new Error("Получен пустой ответ от API");
+      }
       setSlides(generatedSlides);
     } catch (err: any) {
-      setError(err.message || "Ошибка генерации.");
+      console.error("Generation error:", err);
+      setError(err.message || "Ошибка генерации. Проверьте API ключ и соединение.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [config.topic, config.slideCount, config.tone]);
 
-  const handleRegenerateSlide = async (index: number) => {
+  const handleRegenerateSlide = useCallback(async (index: number) => {
     const slide = slides[index];
     if (!slide) return;
     setLoadingSlides(prev => ({ ...prev, [slide.number]: true }));
@@ -155,47 +130,54 @@ const App: React.FC = () => {
         copy[index] = updated;
         return copy;
       });
-    } catch (e) {
-      console.error(e);
+    } catch (err: any) {
+      console.error("Regeneration error:", err);
+      alert(`Не удалось перегенерировать слайд: ${err.message}`);
     } finally {
       setLoadingSlides(prev => ({ ...prev, [slide.number]: false }));
     }
-  };
+  }, [slides, config.topic, config.tone]);
 
-  const handleAiBackgroundGeneration = async () => {
+  const handleAiBackgroundGeneration = useCallback(async () => {
     const slide = slides[activeSlideIndex];
     if (!slide) return;
-    
+
     setLoadingSlides(prev => ({ ...prev, [slide.number]: true }));
     try {
       const imageUrl = await generateBackgroundImage(config.topic, slide);
-      updateSlideStyle({ backgroundType: 'image', backgroundValue: imageUrl });
-    } catch (err) {
-      console.error(err);
-      alert("Не удалось сгенерировать изображение. Попробуйте снова.");
+      setSlideStyles(prev => {
+        const slideNum = slide.number;
+        return {
+          ...prev,
+          [slideNum]: { ...(prev[slideNum] || DEFAULT_STYLE), backgroundType: 'image', backgroundValue: imageUrl }
+        };
+      });
+    } catch (err: any) {
+      console.error("AI image generation error:", err);
+      alert(`Не удалось сгенерировать изображение: ${err.message || 'Неизвестная ошибка'}`);
     } finally {
       setLoadingSlides(prev => ({ ...prev, [slide.number]: false }));
     }
-  };
+  }, [slides, activeSlideIndex, config.topic]);
 
-  const handleSlideUpdate = (field: keyof SlideData, value: string) => {
+  const handleSlideUpdate = useCallback((field: keyof SlideData, value: string) => {
     setSlides(prev => {
       const copy = [...prev];
       copy[activeSlideIndex] = { ...copy[activeSlideIndex], [field]: value };
       return copy;
     });
-  };
+  }, [activeSlideIndex]);
 
-  const updateSlideStyle = (updates: Partial<SlideStyle>) => {
+  const updateSlideStyle = useCallback((updates: Partial<SlideStyle>) => {
     const slideNum = slides[activeSlideIndex]?.number;
     if (!slideNum) return;
     setSlideStyles(prev => ({
       ...prev,
       [slideNum]: { ...(prev[slideNum] || DEFAULT_STYLE), ...updates }
     }));
-  };
+  }, [slides, activeSlideIndex]);
 
-  const handleApplyStyleToAll = () => {
+  const handleApplyStyleToAll = useCallback(() => {
     const currentStyle = slideStyles[slides[activeSlideIndex]?.number];
     if (!currentStyle) return;
 
@@ -204,62 +186,82 @@ const App: React.FC = () => {
       newStyles[slide.number] = { ...currentStyle };
     });
     setSlideStyles(newStyles);
-  };
+  }, [slides, activeSlideIndex, slideStyles]);
 
-  const handleExport = async () => {
+  // Optimized export with parallel processing
+  const handleExport = useCallback(async () => {
     if (slides.length === 0 || !exportRef.current) return;
-    
+
     setIsExporting(true);
     const zip = new JSZip();
-    
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const slideElements = exportRef.current.children;
-      for (let i = 0; i < slideElements.length; i++) {
-        const element = slideElements[i] as HTMLElement;
-        const dataUrl = await toPng(element, { pixelRatio: 2.7, quality: 1.0, cacheBust: true });
-        const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
-        zip.file(`slide-${i + 1}.png`, base64Data, { base64: true });
-      }
+      // Wait for render to complete
+      await new Promise(resolve => setTimeout(resolve, EXPORT_CONFIG.delay));
+
+      const slideElements = Array.from(exportRef.current.children) as HTMLElement[];
+
+      // Parallel processing of all slides
+      const imagePromises = slideElements.map((element, i) =>
+        toPng(element, {
+          pixelRatio: EXPORT_CONFIG.pixelRatio,
+          quality: EXPORT_CONFIG.quality,
+          cacheBust: EXPORT_CONFIG.cacheBust
+        })
+          .then(dataUrl => ({
+            index: i,
+            data: dataUrl.replace(/^data:image\/png;base64,/, "")
+          }))
+          .catch(error => {
+            console.error(`Failed to export slide ${i + 1}:`, error);
+            return null;
+          })
+      );
+
+      const results = await Promise.all(imagePromises);
+
+      // Add successful exports to zip
+      results.forEach(result => {
+        if (result) {
+          zip.file(`slide-${result.index + 1}.png`, result.data, { base64: true });
+        }
+      });
+
       const content = await zip.generateAsync({ type: "blob" });
-      saveAs(content, `carousel-${config.topic.substring(0, 15) || 'kit'}.zip`);
-    } catch (err) {
+      const filename = `carousel-${config.topic.substring(0, 15).replace(/[^a-zA-Z0-9а-яА-Я]/g, '-') || 'kit'}.zip`;
+      saveAs(content, filename);
+    } catch (err: any) {
       console.error("Export failed:", err);
-      alert("Не удалось экспортировать слайды.");
+      alert(`Не удалось экспортировать слайды: ${err.message || 'Неизвестная ошибка'}`);
     } finally {
       setIsExporting(false);
     }
-  };
+  }, [slides, config.topic]);
 
-  // Improved Image Upload: Handles Multiple Files & Distribution
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Improved Image Upload: Handles Multiple Files & Distribution with error handling
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    // Helper to read file to DataURL
-    const readFile = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    };
-
     try {
-      // 1. Read all files
-      const loadedImages = await Promise.all(Array.from(files).map(readFile));
+      // Use utility function with better error handling
+      const loadedImages = await readMultipleFiles(files);
 
-      // 2. Distribute images starting from active slide
+      if (loadedImages.length === 0) {
+        alert("Не удалось загрузить ни одно изображение");
+        return;
+      }
+
+      // Distribute images starting from active slide
       setSlideStyles(prev => {
         const newStyles = { ...prev };
-        
+
         loadedImages.forEach((imgData, i) => {
           const targetIndex = activeSlideIndex + i;
-          
+
           // Stop if we exceed the number of slides
           if (targetIndex >= slides.length) return;
-          
+
           const slideNum = slides[targetIndex].number;
           newStyles[slideNum] = {
             ...(newStyles[slideNum] || DEFAULT_STYLE),
@@ -267,41 +269,45 @@ const App: React.FC = () => {
             backgroundValue: imgData
           };
         });
-        
+
         return newStyles;
       });
 
       // Clear input so same files can be selected again if needed
       if (fileInputRef.current) fileInputRef.current.value = '';
 
-    } catch (err) {
+      if (loadedImages.length < files.length) {
+        alert(`Загружено ${loadedImages.length} из ${files.length} изображений. Некоторые файлы не удалось прочитать.`);
+      }
+
+    } catch (err: any) {
       console.error("Failed to load images", err);
-      alert("Ошибка загрузки изображений");
+      alert(`Ошибка загрузки изображений: ${err.message}`);
     }
-  };
+  }, [activeSlideIndex, slides]);
 
-  const handleTriggerBgUpload = () => {
+  const handleTriggerBgUpload = useCallback(() => {
     if (fileInputRef.current) {
-        fileInputRef.current.click();
+      fileInputRef.current.click();
     }
-  };
+  }, []);
 
-  const renderColorSwatch = (color: string, type: 'text' | 'title') => (
+  const renderColorSwatch = useCallback((color: string, type: 'text' | 'title') => (
     <button
       onClick={() => updateSlideStyle(type === 'text' ? { textColor: color } : { titleColor: color })}
       className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 ${
-        (type === 'text' 
-          ? slideStyles[slides[activeSlideIndex]?.number]?.textColor === color 
+        (type === 'text'
+          ? slideStyles[slides[activeSlideIndex]?.number]?.textColor === color
           : slideStyles[slides[activeSlideIndex]?.number]?.titleColor === color
-        ) 
-          ? 'border-purple-600 scale-110' 
+        )
+          ? 'border-purple-600 scale-110'
           : 'border-transparent'
       }`}
       style={{ backgroundColor: color }}
     />
-  );
+  ), [updateSlideStyle, slideStyles, slides, activeSlideIndex]);
 
-  const renderGradientSwatch = (gradient: string) => (
+  const renderGradientSwatch = useCallback((gradient: string) => (
     <button
       onClick={() => updateSlideStyle({ backgroundType: 'gradient', backgroundValue: gradient })}
       className={`w-full aspect-square rounded-lg shadow-sm hover:shadow-md transition-all ${
@@ -309,42 +315,20 @@ const App: React.FC = () => {
       }`}
       style={{ background: gradient }}
     />
-  );
+  ), [updateSlideStyle, slideStyles, slides, activeSlideIndex]);
 
   // Tone Slider Change Handler
-  const handleToneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleToneChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseInt(e.target.value);
     setToneSliderValue(val);
     const newTone = getToneFromValue(val);
     if (newTone !== config.tone) {
       setConfig({ ...config, tone: newTone });
     }
-  };
+  }, [config]);
 
-  const getCurrentToneInfo = () => {
-    // Find nearest for display
-    return TONE_MAP.reduce((prev, curr) => {
-      return (Math.abs(curr.val - toneSliderValue) < Math.abs(prev.val - toneSliderValue) ? curr : prev);
-    });
-  };
-
-  const toneInfo = getCurrentToneInfo();
-
-  const COLORS = ['#FFFFFF', '#000000', '#F87171', '#FBBF24', '#34D399', '#60A5FA', '#818CF8', '#A78BFA', '#F472B6', '#FB7185'];
-  const GRADIENTS = [
-    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-    'linear-gradient(to top, #cfd9df 0%, #e2ebf0 100%)',
-    'linear-gradient(120deg, #f093fb 0%, #f5576c 100%)',
-    'linear-gradient(120deg, #84fab0 0%, #8fd3f4 100%)',
-    'linear-gradient(to right, #434343 0%, black 100%)',
-    'linear-gradient(to top, #a18cd1 0%, #fbc2eb 100%)',
-    'linear-gradient(to top, #30cfd0 0%, #330867 100%)',
-    'linear-gradient(to top, #a8edea 0%, #fed6e3 100%)',
-  ];
+  // Memoize tone info calculation
+  const toneInfo = useMemo(() => getCurrentToneInfo(toneSliderValue), [toneSliderValue]);
 
   const hasSlides = slides.length > 0;
   const currentSlideData = hasSlides ? slides[activeSlideIndex] : PREVIEW_DATA;
