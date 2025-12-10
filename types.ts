@@ -46,8 +46,8 @@ export interface SlideStyle {
 
 export const DEFAULT_STYLE: SlideStyle = {
   fontSize: 'medium',
-  textColor: '#ffffff',
-  titleColor: '#ffffff',
+  textColor: '', // Empty means use Theme default (CSS classes)
+  titleColor: '', // Empty means use Theme default (CSS classes)
   textAlign: 'center',
   backgroundType: 'solid',
   backgroundValue: '', // Empty means use Theme default

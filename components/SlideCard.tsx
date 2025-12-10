@@ -244,8 +244,8 @@ const getOverrides = (customStyle?: SlideStyle) => {
   if (!customStyle) return {};
   return {
     textAlign: customStyle.textAlign,
-    color: customStyle.textColor !== '#ffffff' && customStyle.textColor !== '#000000' ? customStyle.textColor : undefined,
-    titleColor: customStyle.titleColor !== '#ffffff' && customStyle.titleColor !== '#000000' ? customStyle.titleColor : undefined,
+    color: customStyle.textColor ? customStyle.textColor : undefined,
+    titleColor: customStyle.titleColor ? customStyle.titleColor : undefined,
     overlayOpacity: customStyle.overlayOpacity,
     fontFamily: customStyle.fontFamily
   };
@@ -259,6 +259,7 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
   const contentSize = customStyle ? getSizeClass(customStyle.fontSize, 'content') : 'text-[13px]';
   const bgConfig = getBackgroundConfig(bgImage, overrides);
   
+  // Default dark background if no image is present
   if (!bgConfig.backgroundImage && !bgConfig.background) {
       bgConfig.backgroundColor = '#202020';
   }
@@ -275,9 +276,11 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
     >
       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
+      {/* Noise Texture Overlay - Only show if no background image is uploaded */}
       {!bgImage && (
-        <div className="absolute inset-0 opacity-[0.15] pointer-events-none mix-blend-overlay z-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`
+        <div className="absolute inset-0 opacity-[0.25] pointer-events-none z-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`,
+            mixBlendMode: 'soft-light'
         }}></div>
       )}
 
