@@ -67,6 +67,27 @@ const applyHighlights = (text: string, theme: Theme) => {
   return processed;
 };
 
+// --- HELPER FOR BACKGROUND ---
+const getBackgroundStyle = (bgImage: string | null | undefined, overrides: any) => {
+    const style: React.CSSProperties = {
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        textAlign: overrides.textAlign || undefined,
+        color: overrides.color
+    };
+
+    if (bgImage) {
+        if (bgImage.startsWith('http') || bgImage.startsWith('data:image')) {
+            style.backgroundImage = `url(${bgImage})`;
+        } else if (bgImage.includes('url(')) {
+            style.backgroundImage = bgImage;
+        } else {
+            style.background = bgImage; // Hex or Gradient
+        }
+    }
+    return style;
+};
+
 // --- EDITABLE COMPONENT ---
 const EditableText = ({ 
   value, 
@@ -139,7 +160,7 @@ const EditableText = ({
 };
 
 export const SlideCard: React.FC<SlideCardProps> = (props) => {
-  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle } = props;
+  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg } = props;
   
   // Merge backgrounds: Custom > Global > Theme Default (handled in components)
   // But if customStyle.backgroundValue is present (from Editor), it takes precedence over everything
@@ -170,6 +191,30 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
         {renderCard()}
       </div>
       
+      {/* HOVER ACTIONS OVERLAY */}
+      {!readOnly && (
+        <div className="absolute top-4 right-4 z-40 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
+           {onRegenerate && (
+             <button 
+               onClick={(e) => { e.stopPropagation(); onRegenerate(); }} 
+               className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100"
+               title="Перегенерировать этот слайд"
+             >
+               <RefreshCw size={16} />
+             </button>
+           )}
+           {onUploadBg && (
+             <button 
+               onClick={(e) => { e.stopPropagation(); onUploadBg(); }} 
+               className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100"
+               title="Загрузить фото на фон"
+             >
+               <ImagePlus size={16} />
+             </button>
+           )}
+        </div>
+      )}
+
       {/* Regeneration Spinner Overlay */}
       {props.isRegenerating && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-[inherit]">
@@ -196,18 +241,17 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-[20px]';
   const contentSize = customStyle ? getSizeClass(customStyle.fontSize, 'content') : 'text-[13px]';
+  const style = getBackgroundStyle(bgImage, overrides);
+  
+  // Default bg for dark modern if no image
+  if (!style.backgroundImage && !style.background) {
+      style.backgroundColor = '#202020';
+  }
 
   return (
     <div 
-      className="w-full h-full bg-[#202020] text-white flex flex-col p-8 relative overflow-hidden"
-      style={{
-        backgroundImage: bgImage && bgImage.includes('url') ? bgImage : bgImage ? `url(${bgImage})` : undefined,
-        background: bgImage && !bgImage.includes('url') && !bgImage.startsWith('http') && !bgImage.startsWith('data') ? bgImage : undefined,
-        backgroundSize: 'cover', 
-        backgroundPosition: 'center',
-        textAlign: overrides.textAlign || 'left',
-        color: overrides.color
-      }}
+      className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden"
+      style={style}
     >
       {!bgImage && (
         <div className="absolute inset-0 opacity-[0.15] pointer-events-none mix-blend-overlay" style={{
@@ -251,18 +295,14 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
 const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-5xl';
-  // Retro theme uses specific sizes usually, but we allow overrides
-  
+  const style = getBackgroundStyle(bgImage, overrides);
+  if (!style.backgroundImage && !style.background) style.backgroundColor = '#F5F5F0';
+  if (!style.textAlign) style.textAlign = 'center';
+
   return (
     <div 
-      className="w-full h-full bg-[#F5F5F0] flex flex-col relative overflow-hidden"
-      style={{
-        backgroundImage: bgImage && bgImage.includes('url') ? bgImage : bgImage ? `url(${bgImage})` : undefined,
-        background: bgImage && !bgImage.includes('url') && !bgImage.startsWith('http') ? bgImage : undefined,
-        backgroundSize: 'cover',
-        textAlign: overrides.textAlign || 'center',
-        color: overrides.color
-      }}
+      className="w-full h-full flex flex-col relative overflow-hidden"
+      style={style}
     >
        {!bgImage && (
          <div className="absolute inset-0 opacity-[0.4]" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M5 0h1v1H5V0zM0 5h1v1H0V5z'/%3E%3C/g%3E%3C/svg%3E")`}}></div>
@@ -273,7 +313,7 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
            <div className="font-['Courier_Prime'] font-bold text-xs">NO. {data.number}</div>
            <div className="font-['Courier_Prime'] font-bold text-xs uppercase text-zinc-600">{username.replace('@', '')}</div>
         </div>
-        <div className={`flex-1 flex flex-col justify-center ${overrides.textAlign === 'left' ? 'items-start text-left' : overrides.textAlign === 'right' ? 'items-end text-right' : 'items-center text-center'}`}>
+        <div className={`flex-1 flex flex-col justify-center ${style.textAlign === 'left' ? 'items-start text-left' : style.textAlign === 'right' ? 'items-end text-right' : 'items-center text-center'}`}>
           <EditableText tagName="h2" className={`font-['Anton'] uppercase leading-[0.9] text-black tracking-tight mb-8 mix-blend-multiply break-words w-full ${titleSize}`} value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.titleColor || overrides.color }} />
           <EditableText tagName="p" className="font-['Courier_Prime'] text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color }} />
         </div>
@@ -293,17 +333,13 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
 const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-4xl';
+  const style = getBackgroundStyle(bgImage, overrides);
+  if (!style.backgroundImage && !style.background) style.backgroundColor = 'black';
 
   return (
     <div 
-      className="w-full h-full bg-black text-white flex flex-col p-8 relative overflow-hidden"
-      style={{
-        backgroundImage: bgImage && bgImage.includes('url') ? bgImage : bgImage ? `url(${bgImage})` : undefined,
-        background: bgImage && !bgImage.includes('url') && !bgImage.startsWith('http') ? bgImage : undefined,
-        backgroundSize: 'cover',
-        textAlign: overrides.textAlign || 'left',
-        color: overrides.color
-      }}
+      className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden"
+      style={style}
     >
       {!bgImage && (
         <>
@@ -337,17 +373,12 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
 const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, isDark, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : (isFirst ? 'text-4xl' : 'text-2xl');
+  const style = getBackgroundStyle(bgImage, overrides);
 
   return (
     <div 
       className={`w-full h-full flex flex-col justify-between p-8 transition-all duration-300 select-none relative overflow-hidden ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
-      style={{
-        backgroundImage: bgImage && bgImage.includes('url') ? bgImage : bgImage ? `url(${bgImage})` : undefined,
-        background: bgImage && !bgImage.includes('url') && !bgImage.startsWith('http') ? bgImage : undefined,
-        backgroundSize: 'cover',
-        textAlign: overrides.textAlign || 'left',
-        color: overrides.color
-      }}
+      style={style}
     >
        {bgImage && <div className={`absolute inset-0 ${isDark ? 'bg-black/70' : 'bg-white/80'} z-0`}></div>}
       <div className="relative z-10 flex justify-between items-center opacity-50">
