@@ -1,3 +1,4 @@
+
 export enum Theme {
   MINIMAL_LIGHT = 'minimal_light',
   MINIMAL_DARK = 'minimal_dark',
@@ -28,3 +29,28 @@ export interface CarouselConfig {
   theme: Theme;
   tone: Tone;
 }
+
+export type TextAlign = 'left' | 'center' | 'right';
+export type TextSize = 'small' | 'medium' | 'large' | 'extra';
+
+export interface SlideStyle {
+  fontSize: TextSize;
+  textColor: string; // Body text color
+  titleColor: string; // Header text color
+  textAlign: TextAlign;
+  backgroundType: 'solid' | 'gradient' | 'image';
+  backgroundValue: string; // Color code, gradient string, or image URL
+  overlayOpacity: number; // 0-1
+}
+
+export const DEFAULT_STYLE: SlideStyle = {
+  fontSize: 'medium',
+  textColor: '#ffffff',
+  titleColor: '#ffffff',
+  textAlign: 'center',
+  backgroundType: 'solid',
+  backgroundValue: '', // Empty means use Theme default
+  overlayOpacity: 0
+};
+
+export type EditorTab = 'text' | 'image' | 'background';
