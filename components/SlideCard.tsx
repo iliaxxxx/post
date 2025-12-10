@@ -368,7 +368,7 @@ const RetroPaperCard: React.FC<ThemeCardProps> = ({ data, theme, isFirst, isLast
           <EditableText tagName="p" className="font-['Courier_Prime'] text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
         </div>
         <div className="mt-auto pt-6 flex justify-between items-center">
-           {isFirst && <div className="text-[10px] font-mono">SWIPE -></div>}
+           {isFirst && <div className="text-[10px] font-mono">SWIPE -&gt;</div>}
            {isLast && data.cta ? (
               <div className={`w-full bg-black text-white text-center font-['Anton'] uppercase text-lg transition-colors ${!readOnly ? 'cursor-pointer pointer-events-auto hover:bg-zinc-800' : ''}`}>
                 <EditableText tagName="div" className="py-2" value={data.cta} onChange={(val: string) => onSlideChange('cta', val)} readOnly={readOnly} theme={theme} />
