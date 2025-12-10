@@ -356,6 +356,7 @@ const App: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 opacity-80 z-0 pointer-events-none"></div>
 
       {/* --- HIDDEN INPUTS --- */}
+      {/* Moved outside logic to ensure it is always mounted for refs */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -790,22 +791,6 @@ const App: React.FC = () => {
                                value={slideStyles[slides[activeSlideIndex]?.number]?.overlayOpacity ?? 0.2}
                                onChange={(e) => updateSlideStyle({ overlayOpacity: parseFloat(e.target.value) })}
                                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                            />
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center">
-                              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                                 <Sun size={14} className="text-orange-500" /> Яркость фото
-                              </label>
-                              <span className="text-xs font-bold text-slate-600">{Math.round((slideStyles[slides[activeSlideIndex]?.number]?.backgroundBrightness ?? 1) * 100)}%</span>
-                            </div>
-                            <input 
-                               type="range" 
-                               min="0.2" max="1.5" step="0.1"
-                               value={slideStyles[slides[activeSlideIndex]?.number]?.backgroundBrightness ?? 1}
-                               onChange={(e) => updateSlideStyle({ backgroundBrightness: parseFloat(e.target.value) })}
-                               className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
                             />
                           </div>
                       </div>

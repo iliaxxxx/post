@@ -69,7 +69,6 @@ const applyHighlights = (text: string, theme: Theme) => {
 };
 
 // --- HELPER FOR BACKGROUND ---
-// Updated to separate image from container style for filter support
 const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any) => {
     let backgroundImage = null;
     let backgroundColor = undefined;
@@ -91,7 +90,6 @@ const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any)
         background,
         textAlign: overrides.textAlign || undefined,
         color: overrides.color,
-        filter: overrides.backgroundBrightness ? `brightness(${overrides.backgroundBrightness})` : undefined
     };
 };
 
@@ -249,37 +247,11 @@ const getOverrides = (customStyle?: SlideStyle) => {
     color: customStyle.textColor !== '#ffffff' && customStyle.textColor !== '#000000' ? customStyle.textColor : undefined,
     titleColor: customStyle.titleColor !== '#ffffff' && customStyle.titleColor !== '#000000' ? customStyle.titleColor : undefined,
     overlayOpacity: customStyle.overlayOpacity,
-    backgroundBrightness: customStyle.backgroundBrightness,
     fontFamily: customStyle.fontFamily
   };
 };
 
 // --- STYLE COMPONENTS ---
-
-const BackgroundLayer = ({ bgConfig, overlayOpacity }: { bgConfig: any, overlayOpacity: number }) => {
-    return (
-        <>
-            {/* Base Color/Gradient */}
-            {(bgConfig.backgroundColor || bgConfig.background) && (
-                 <div className="absolute inset-0 z-0" style={{ backgroundColor: bgConfig.backgroundColor, background: bgConfig.background }}></div>
-            )}
-            
-            {/* Image Layer with Brightness Filter */}
-            {bgConfig.backgroundImage && (
-                <div 
-                    className="absolute inset-0 z-0 bg-cover bg-center" 
-                    style={{ 
-                        backgroundImage: bgConfig.backgroundImage,
-                        filter: bgConfig.filter
-                    }}
-                ></div>
-            )}
-            
-            {/* Dimming Overlay (Black) */}
-            <div className="absolute inset-0 z-0 bg-black pointer-events-none" style={{ opacity: overlayOpacity }}></div>
-        </>
-    )
-}
 
 const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
@@ -295,10 +267,13 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
 
   return (
     <div 
-      className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden"
-      style={{ fontFamily: overrides.fontFamily }}
+      className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden bg-cover bg-center"
+      style={{ 
+          ...bgConfig,
+          fontFamily: overrides.fontFamily 
+      }}
     >
-      <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+      <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
       {!bgImage && (
         <div className="absolute inset-0 opacity-[0.15] pointer-events-none mix-blend-overlay z-0" style={{
@@ -350,10 +325,10 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
 
   return (
     <div 
-      className="w-full h-full flex flex-col relative overflow-hidden"
-      style={{ fontFamily: overrides.fontFamily }}
+      className="w-full h-full flex flex-col relative overflow-hidden bg-cover bg-center"
+      style={{ ...bgConfig, fontFamily: overrides.fontFamily }}
     >
-       <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
        {!bgImage && (
          <div className="absolute inset-0 opacity-[0.4] z-0" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M5 0h1v1H5V0zM0 5h1v1H0V5z'/%3E%3C/g%3E%3C/svg%3E")`}}></div>
@@ -392,10 +367,10 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
 
   return (
     <div 
-      className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden"
-      style={{ fontFamily: overrides.fontFamily }}
+      className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden bg-cover bg-center"
+      style={{ ...bgConfig, fontFamily: overrides.fontFamily }}
     >
-      <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+      <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
       {!bgImage && (
         <>
@@ -434,10 +409,10 @@ const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides,
 
   return (
     <div 
-      className={`w-full h-full flex flex-col justify-between p-8 transition-all duration-300 select-none relative overflow-hidden ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
-      style={{ fontFamily: overrides.fontFamily }}
+      className={`w-full h-full flex flex-col justify-between p-8 transition-all duration-300 select-none relative overflow-hidden bg-cover bg-center ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
+      style={{ ...bgConfig, fontFamily: overrides.fontFamily }}
     >
-       <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+      <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
       <div className="relative z-10 flex justify-between items-center opacity-50">
         <div className="flex items-center gap-1"><span className="text-xs font-semibold uppercase tracking-widest font-['Inter']">AI Carousel</span></div>
