@@ -161,3 +161,52 @@ export const regenerateSlideContent = async (
     throw new Error("Не удалось перегенерировать слайд.");
   }
 };
+
+export const generateBackgroundImage = async (
+  topic: string,
+  slideContext: SlideData
+): Promise<string> => {
+  try {
+    const model = "gemini-2.5-flash-image";
+    
+    // Construct a specific visual prompt
+    const prompt = `
+      Professional, cinematic, minimalist background image for a social media post.
+      Topic: ${topic}
+      Context: ${slideContext.title}
+      Style: Modern, aesthetic, soft lighting, 4k quality, abstract or photorealistic, high resolution.
+      Ensure the center is not too cluttered so text can be readable.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: {
+        parts: [{ text: prompt }]
+      },
+      config: {
+        imageConfig: {
+          aspectRatio: "3:4", // Closest to 4:5 vertical slide format
+        }
+      }
+    });
+
+    // Check parts for inlineData
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          const base64Data = part.inlineData.data;
+          // Determine mime type if possible, or assume png/jpeg based on API behavior
+          // The API typically returns standard image mime types.
+          const mimeType = part.inlineData.mimeType || 'image/png';
+          return `data:${mimeType};base64,${base64Data}`;
+        }
+      }
+    }
+
+    throw new Error("No image data found in response");
+
+  } catch (error) {
+    console.error("Gemini Image Gen Error:", error);
+    throw new Error("Не удалось сгенерировать изображение.");
+  }
+};

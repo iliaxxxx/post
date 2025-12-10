@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { generateCarouselContent, regenerateSlideContent } from './services/geminiService';
+import { generateCarouselContent, regenerateSlideContent, generateBackgroundImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { ThemePreview } from './components/ThemePreview';
@@ -9,7 +9,7 @@ import {
   Sparkles, Download, Share2, Plus, Copy, Trash2, 
   Type, Image as ImageIcon, Palette, Layers, 
   ChevronLeft, ChevronRight, Wand2, RefreshCw, Upload, AlignLeft, AlignCenter, AlignRight, Check,
-  RotateCw, LayoutGrid, Zap, Smile, Briefcase
+  RotateCw, LayoutGrid, Zap, Smile, Briefcase, Type as FontIcon, Droplets, Sun, Moon
 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
@@ -30,6 +30,15 @@ const TONE_MAP = [
   { val: 50, tone: Tone.VIRAL, label: "Вирусный", icon: "⚡", desc: "Коротко, хайпово" },
   { val: 75, tone: Tone.PROVOCATIVE, label: "Дерзкий", icon: "🔥", desc: "С вызовом, триггеры" },
   { val: 100, tone: Tone.FUNNY, label: "С юмором", icon: "🤪", desc: "Ирония и шутки" },
+];
+
+const FONTS = [
+  { name: 'Inter', family: "'Inter', sans-serif", label: "Modern Sans" },
+  { name: 'Montserrat', family: "'Montserrat', sans-serif", label: "Geometric" },
+  { name: 'Bebas Neue', family: "'Bebas Neue', sans-serif", label: "Display Bold" },
+  { name: 'Playfair Display', family: "'Playfair Display', serif", label: "Elegant Serif" },
+  { name: 'Merriweather', family: "'Merriweather', serif", label: "Readable Serif" },
+  { name: 'Roboto Slab', family: "'Roboto Slab', serif", label: "Strong Slab" },
 ];
 
 const getToneFromValue = (value: number): Tone => {
@@ -81,7 +90,8 @@ const App: React.FC = () => {
   useEffect(() => {
     const linkId = 'google-fonts-stylesheet';
     if (!document.getElementById(linkId)) {
-      const url = 'https://fonts.googleapis.com/css2?family=Anton&family=Courier+Prime:wght@400;700&family=Inter:wght@300;400;600;700&family=Outfit:wght@300;500;700;900&display=swap';
+      // Added Montserrat, Bebas Neue, Playfair Display, Merriweather, Roboto Slab
+      const url = 'https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Courier+Prime:wght@400;700&family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&family=Montserrat:wght@400;600;800&family=Outfit:wght@300;500;700;900&family=Playfair+Display:wght@400;700&family=Roboto+Slab:wght@400;700&display=swap';
       fetch(url)
         .then(res => res.text())
         .then(css => {
@@ -147,6 +157,22 @@ const App: React.FC = () => {
       });
     } catch (e) {
       console.error(e);
+    } finally {
+      setLoadingSlides(prev => ({ ...prev, [slide.number]: false }));
+    }
+  };
+
+  const handleAiBackgroundGeneration = async () => {
+    const slide = slides[activeSlideIndex];
+    if (!slide) return;
+    
+    setLoadingSlides(prev => ({ ...prev, [slide.number]: true }));
+    try {
+      const imageUrl = await generateBackgroundImage(config.topic, slide);
+      updateSlideStyle({ backgroundType: 'image', backgroundValue: imageUrl });
+    } catch (err) {
+      console.error(err);
+      alert("Не удалось сгенерировать изображение. Попробуйте снова.");
     } finally {
       setLoadingSlides(prev => ({ ...prev, [slide.number]: false }));
     }
@@ -330,7 +356,6 @@ const App: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 opacity-80 z-0 pointer-events-none"></div>
 
       {/* --- HIDDEN INPUTS --- */}
-      {/* Moved outside conditional to enable access from PhoneFrame */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -513,6 +538,7 @@ const App: React.FC = () => {
                   onSlideChange={(f, v) => hasSlides && handleSlideUpdate(f, v)}
                   onRegenerate={() => hasSlides && handleRegenerateSlide(activeSlideIndex)}
                   onUploadBg={() => hasSlides && handleTriggerBgUpload()}
+                  onGenerateBg={() => hasSlides && handleAiBackgroundGeneration()}
                   isRegenerating={hasSlides && loadingSlides[currentSlideData.number]}
                   customStyle={currentStyle}
                   readOnly={!hasSlides}
@@ -616,6 +642,27 @@ const App: React.FC = () => {
                   </div>
 
                   <div className="space-y-3">
+                     <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Шрифт</label>
+                     <div className="grid grid-cols-2 gap-2">
+                        {FONTS.map(f => (
+                           <button
+                             key={f.name}
+                             onClick={() => updateSlideStyle({ fontFamily: f.family })}
+                             className={`py-2 px-3 rounded-lg text-xs border text-left transition-all ${
+                               slideStyles[slides[activeSlideIndex]?.number]?.fontFamily === f.family
+                                 ? 'bg-purple-100 border-purple-500 text-purple-900 ring-1 ring-purple-500'
+                                 : 'bg-white/60 border-slate-200 text-slate-600 hover:bg-white'
+                             }`}
+                             style={{ fontFamily: f.family }}
+                           >
+                             <div className="font-bold">{f.name}</div>
+                             <div className="text-[10px] opacity-60 font-sans">{f.label}</div>
+                           </button>
+                        ))}
+                     </div>
+                  </div>
+
+                  <div className="space-y-3">
                      <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Размер шрифта</label>
                      <div className="grid grid-cols-2 gap-2">
                         {(['small', 'medium', 'large', 'extra'] as TextSize[]).map(s => (
@@ -692,21 +739,75 @@ const App: React.FC = () => {
                     <h3 className="text-sm font-bold text-slate-800">Редактирование: Слайд {slides[activeSlideIndex]?.number}</h3>
                  </div>
                  
-                 <div 
-                   onClick={() => fileInputRef.current?.click()}
-                   className="w-full h-48 border-2 border-dashed border-purple-300 bg-purple-50/50 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-purple-50 hover:border-purple-500 transition-all group"
-                 >
-                    <div className="w-16 h-16 bg-white rounded-full shadow-md flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                       <Upload size={24} />
-                    </div>
-                    <span className="text-sm font-bold text-purple-900">Загрузить фото (можно сразу несколько)</span>
+                 <div className="grid grid-cols-2 gap-3">
+                   <div 
+                     onClick={() => fileInputRef.current?.click()}
+                     className="w-full h-32 border-2 border-dashed border-purple-300 bg-purple-50/50 rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-purple-50 hover:border-purple-500 transition-all group"
+                   >
+                      <div className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                         <Upload size={20} />
+                      </div>
+                      <span className="text-xs font-bold text-purple-900 text-center px-2">Загрузить фото</span>
+                   </div>
+
+                   <button 
+                     onClick={handleAiBackgroundGeneration}
+                     disabled={loadingSlides[slides[activeSlideIndex]?.number]}
+                     className="w-full h-32 border-2 border-purple-500 bg-purple-600 text-white rounded-2xl flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-purple-700 hover:shadow-lg transition-all group relative overflow-hidden"
+                   >
+                      <div className="absolute inset-0 bg-gradient-to-tr from-purple-600 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div className="relative z-10 flex flex-col items-center gap-3">
+                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-sm group-hover:scale-110 transition-transform">
+                           {loadingSlides[slides[activeSlideIndex]?.number] ? <RefreshCw className="animate-spin" size={20} /> : <Wand2 size={20} />}
+                        </div>
+                        <span className="text-xs font-bold text-center px-2">
+                           {loadingSlides[slides[activeSlideIndex]?.number] ? 'Создаю...' : 'Сгенерировать AI'}
+                        </span>
+                      </div>
+                   </button>
                  </div>
 
                  {slideStyles[slides[activeSlideIndex]?.number]?.backgroundType === 'image' && (
-                   <div className="relative rounded-xl overflow-hidden shadow-md group">
-                      <img src={slideStyles[slides[activeSlideIndex]?.number]?.backgroundValue} className="w-full h-32 object-cover" />
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onClick={() => updateSlideStyle({ backgroundType: 'solid', backgroundValue: '' })} className="px-4 py-2 bg-white rounded-full text-red-500 text-xs font-bold">Удалить</button>
+                   <div className="space-y-6">
+                      <div className="relative rounded-xl overflow-hidden shadow-md group">
+                          <img src={slideStyles[slides[activeSlideIndex]?.number]?.backgroundValue} className="w-full h-32 object-cover" />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => updateSlideStyle({ backgroundType: 'solid', backgroundValue: '' })} className="px-4 py-2 bg-white rounded-full text-red-500 text-xs font-bold">Удалить</button>
+                          </div>
+                      </div>
+
+                      <div className="p-4 bg-white/50 rounded-2xl border border-white/60 shadow-sm space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                 <Droplets size={14} className="text-purple-600" /> Затемнение (Overlay)
+                              </label>
+                              <span className="text-xs font-bold text-slate-600">{Math.round((slideStyles[slides[activeSlideIndex]?.number]?.overlayOpacity || 0) * 100)}%</span>
+                            </div>
+                            <input 
+                               type="range" 
+                               min="0" max="1" step="0.1"
+                               value={slideStyles[slides[activeSlideIndex]?.number]?.overlayOpacity ?? 0.2}
+                               onChange={(e) => updateSlideStyle({ overlayOpacity: parseFloat(e.target.value) })}
+                               className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center">
+                              <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                                 <Sun size={14} className="text-orange-500" /> Яркость фото
+                              </label>
+                              <span className="text-xs font-bold text-slate-600">{Math.round((slideStyles[slides[activeSlideIndex]?.number]?.backgroundBrightness ?? 1) * 100)}%</span>
+                            </div>
+                            <input 
+                               type="range" 
+                               min="0.2" max="1.5" step="0.1"
+                               value={slideStyles[slides[activeSlideIndex]?.number]?.backgroundBrightness ?? 1}
+                               onChange={(e) => updateSlideStyle({ backgroundBrightness: parseFloat(e.target.value) })}
+                               className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-orange-500"
+                            />
+                          </div>
                       </div>
                    </div>
                  )}

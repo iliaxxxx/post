@@ -38,9 +38,11 @@ export interface SlideStyle {
   textColor: string; // Body text color
   titleColor: string; // Header text color
   textAlign: TextAlign;
+  fontFamily?: string; // Font override
   backgroundType: 'solid' | 'gradient' | 'image';
   backgroundValue: string; // Color code, gradient string, or image URL
-  overlayOpacity: number; // 0-1
+  overlayOpacity: number; // 0-1 (Dimming)
+  backgroundBrightness?: number; // 0-2 (Image Brightness)
 }
 
 export const DEFAULT_STYLE: SlideStyle = {
@@ -50,7 +52,8 @@ export const DEFAULT_STYLE: SlideStyle = {
   textAlign: 'center',
   backgroundType: 'solid',
   backgroundValue: '', // Empty means use Theme default
-  overlayOpacity: 0
+  overlayOpacity: 0.2, // Default slight overlay
+  backgroundBrightness: 1 // Default normal brightness
 };
 
 export type EditorTab = 'text' | 'image' | 'background';

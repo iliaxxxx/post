@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { SlideData, Theme, SlideStyle, TextSize, TextAlign } from '../types';
-import { Heart, Send, Bookmark, ImagePlus, RefreshCw, Zap, Trash2, ArrowLeft, ArrowRight, Highlighter } from 'lucide-react';
+import { Heart, Send, Bookmark, ImagePlus, RefreshCw, Zap, Trash2, ArrowLeft, ArrowRight, Highlighter, Wand2 } from 'lucide-react';
 
 interface SlideCardProps {
   data: SlideData;
@@ -18,6 +18,7 @@ interface SlideCardProps {
   // Actions
   onRegenerate?: () => void;
   onUploadBg?: () => void;
+  onGenerateBg?: () => void; // New prop for AI image gen
   onDelete?: () => void;
   isRegenerating?: boolean;
 }
@@ -68,24 +69,30 @@ const applyHighlights = (text: string, theme: Theme) => {
 };
 
 // --- HELPER FOR BACKGROUND ---
-const getBackgroundStyle = (bgImage: string | null | undefined, overrides: any) => {
-    const style: React.CSSProperties = {
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        textAlign: overrides.textAlign || undefined,
-        color: overrides.color
-    };
+// Updated to separate image from container style for filter support
+const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any) => {
+    let backgroundImage = null;
+    let backgroundColor = undefined;
+    let background = undefined;
 
     if (bgImage) {
         if (bgImage.startsWith('http') || bgImage.startsWith('data:image')) {
-            style.backgroundImage = `url(${bgImage})`;
+            backgroundImage = `url(${bgImage})`;
         } else if (bgImage.includes('url(')) {
-            style.backgroundImage = bgImage;
+            backgroundImage = bgImage;
         } else {
-            style.background = bgImage; // Hex or Gradient
+            background = bgImage; // Hex or Gradient
         }
     }
-    return style;
+
+    return {
+        backgroundImage,
+        backgroundColor,
+        background,
+        textAlign: overrides.textAlign || undefined,
+        color: overrides.color,
+        filter: overrides.backgroundBrightness ? `brightness(${overrides.backgroundBrightness})` : undefined
+    };
 };
 
 // --- EDITABLE COMPONENT ---
@@ -160,7 +167,7 @@ const EditableText = ({
 };
 
 export const SlideCard: React.FC<SlideCardProps> = (props) => {
-  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg } = props;
+  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg, onGenerateBg } = props;
   
   // Merge backgrounds: Custom > Global > Theme Default (handled in components)
   // But if customStyle.backgroundValue is present (from Editor), it takes precedence over everything
@@ -203,6 +210,15 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
                <RefreshCw size={16} />
              </button>
            )}
+           {onGenerateBg && (
+             <button 
+               onClick={(e) => { e.stopPropagation(); onGenerateBg(); }} 
+               className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100"
+               title="Сгенерировать AI фон"
+             >
+               <Wand2 size={16} />
+             </button>
+           )}
            {onUploadBg && (
              <button 
                onClick={(e) => { e.stopPropagation(); onUploadBg(); }} 
@@ -232,33 +248,63 @@ const getOverrides = (customStyle?: SlideStyle) => {
     textAlign: customStyle.textAlign,
     color: customStyle.textColor !== '#ffffff' && customStyle.textColor !== '#000000' ? customStyle.textColor : undefined,
     titleColor: customStyle.titleColor !== '#ffffff' && customStyle.titleColor !== '#000000' ? customStyle.titleColor : undefined,
+    overlayOpacity: customStyle.overlayOpacity,
+    backgroundBrightness: customStyle.backgroundBrightness,
+    fontFamily: customStyle.fontFamily
   };
 };
 
 // --- STYLE COMPONENTS ---
 
+const BackgroundLayer = ({ bgConfig, overlayOpacity }: { bgConfig: any, overlayOpacity: number }) => {
+    return (
+        <>
+            {/* Base Color/Gradient */}
+            {(bgConfig.backgroundColor || bgConfig.background) && (
+                 <div className="absolute inset-0 z-0" style={{ backgroundColor: bgConfig.backgroundColor, background: bgConfig.background }}></div>
+            )}
+            
+            {/* Image Layer with Brightness Filter */}
+            {bgConfig.backgroundImage && (
+                <div 
+                    className="absolute inset-0 z-0 bg-cover bg-center" 
+                    style={{ 
+                        backgroundImage: bgConfig.backgroundImage,
+                        filter: bgConfig.filter
+                    }}
+                ></div>
+            )}
+            
+            {/* Dimming Overlay (Black) */}
+            <div className="absolute inset-0 z-0 bg-black pointer-events-none" style={{ opacity: overlayOpacity }}></div>
+        </>
+    )
+}
+
 const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-[20px]';
   const contentSize = customStyle ? getSizeClass(customStyle.fontSize, 'content') : 'text-[13px]';
-  const style = getBackgroundStyle(bgImage, overrides);
+  const bgConfig = getBackgroundConfig(bgImage, overrides);
   
-  // Default bg for dark modern if no image
-  if (!style.backgroundImage && !style.background) {
-      style.backgroundColor = '#202020';
+  if (!bgConfig.backgroundImage && !bgConfig.background) {
+      bgConfig.backgroundColor = '#202020';
   }
+
+  const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.4 : 0);
 
   return (
     <div 
       className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden"
-      style={style}
+      style={{ fontFamily: overrides.fontFamily }}
     >
+      <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+
       {!bgImage && (
-        <div className="absolute inset-0 opacity-[0.15] pointer-events-none mix-blend-overlay" style={{
+        <div className="absolute inset-0 opacity-[0.15] pointer-events-none mix-blend-overlay z-0" style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`
         }}></div>
       )}
-      {bgImage && <div className="absolute inset-0 bg-black/40 pointer-events-none"></div>}
 
       <div className="relative z-10 flex flex-col h-full">
         <div className={`flex ${overrides.textAlign === 'center' ? 'justify-center' : overrides.textAlign === 'right' ? 'justify-end' : 'justify-start'} mb-4`}>
@@ -269,13 +315,13 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
             tagName="h2" 
             className={`font-['Inter'] font-bold leading-[1.2] tracking-tight ${titleSize}`} 
             value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} autoHighlight={true} 
-            styleOverride={{ color: overrides.titleColor || overrides.color }}
+            styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.fontFamily }}
           />
-          <div className={`font-['Inter'] leading-relaxed text-zinc-300 ${contentSize}`}>
+          <div className={`font-['Inter'] leading-relaxed text-zinc-300 ${contentSize}`} style={{ fontFamily: overrides.fontFamily }}>
             <EditableText 
               tagName="div" 
               value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} autoHighlight={true}
-              styleOverride={{ color: overrides.color }}
+              styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }}
             />
           </div>
         </div>
@@ -295,27 +341,33 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
 const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-5xl';
-  const style = getBackgroundStyle(bgImage, overrides);
-  if (!style.backgroundImage && !style.background) style.backgroundColor = '#F5F5F0';
-  if (!style.textAlign) style.textAlign = 'center';
+  const bgConfig = getBackgroundConfig(bgImage, overrides);
+  
+  if (!bgConfig.backgroundImage && !bgConfig.background) bgConfig.backgroundColor = '#F5F5F0';
+  if (!bgConfig.textAlign) bgConfig.textAlign = 'center';
+
+  const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.2 : 0);
 
   return (
     <div 
       className="w-full h-full flex flex-col relative overflow-hidden"
-      style={style}
+      style={{ fontFamily: overrides.fontFamily }}
     >
+       <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+
        {!bgImage && (
-         <div className="absolute inset-0 opacity-[0.4]" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M5 0h1v1H5V0zM0 5h1v1H0V5z'/%3E%3C/g%3E%3C/svg%3E")`}}></div>
+         <div className="absolute inset-0 opacity-[0.4] z-0" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M5 0h1v1H5V0zM0 5h1v1H0V5z'/%3E%3C/g%3E%3C/svg%3E")`}}></div>
        )}
+
       <div className="absolute inset-4 border-2 border-black flex flex-col pointer-events-none z-20"></div>
       <div className="flex-1 flex flex-col p-8 z-10 h-full">
         <div className="flex justify-between items-center mb-6">
            <div className="font-['Courier_Prime'] font-bold text-xs">NO. {data.number}</div>
            <div className="font-['Courier_Prime'] font-bold text-xs uppercase text-zinc-600">{username.replace('@', '')}</div>
         </div>
-        <div className={`flex-1 flex flex-col justify-center ${style.textAlign === 'left' ? 'items-start text-left' : style.textAlign === 'right' ? 'items-end text-right' : 'items-center text-center'}`}>
-          <EditableText tagName="h2" className={`font-['Anton'] uppercase leading-[0.9] text-black tracking-tight mb-8 mix-blend-multiply break-words w-full ${titleSize}`} value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.titleColor || overrides.color }} />
-          <EditableText tagName="p" className="font-['Courier_Prime'] text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color }} />
+        <div className={`flex-1 flex flex-col justify-center ${bgConfig.textAlign === 'left' ? 'items-start text-left' : bgConfig.textAlign === 'right' ? 'items-end text-right' : 'items-center text-center'}`}>
+          <EditableText tagName="h2" className={`font-['Anton'] uppercase leading-[0.9] text-black tracking-tight mb-8 mix-blend-multiply break-words w-full ${titleSize}`} value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.fontFamily }} />
+          <EditableText tagName="p" className="font-['Courier_Prime'] text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
         </div>
         <div className="mt-auto pt-6 flex justify-between items-center">
            {isFirst && <div className="text-[10px] font-mono">SWIPE -></div>}
@@ -333,21 +385,24 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
 const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-4xl';
-  const style = getBackgroundStyle(bgImage, overrides);
-  if (!style.backgroundImage && !style.background) style.backgroundColor = 'black';
+  const bgConfig = getBackgroundConfig(bgImage, overrides);
+
+  if (!bgConfig.backgroundImage && !bgConfig.background) bgConfig.backgroundColor = 'black';
+  const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.7 : 0);
 
   return (
     <div 
       className="w-full h-full text-white flex flex-col p-8 relative overflow-hidden"
-      style={style}
+      style={{ fontFamily: overrides.fontFamily }}
     >
+      <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+
       {!bgImage && (
         <>
-          <div className="absolute top-[-20%] right-[-20%] w-[200px] h-[200px] bg-indigo-600 blur-[80px] opacity-40 rounded-full pointer-events-none"></div>
-          <div className="absolute bottom-[-20%] left-[-20%] w-[200px] h-[200px] bg-fuchsia-600 blur-[80px] opacity-30 rounded-full pointer-events-none"></div>
+          <div className="absolute top-[-20%] right-[-20%] w-[200px] h-[200px] bg-indigo-600 blur-[80px] opacity-40 rounded-full pointer-events-none z-0"></div>
+          <div className="absolute bottom-[-20%] left-[-20%] w-[200px] h-[200px] bg-fuchsia-600 blur-[80px] opacity-30 rounded-full pointer-events-none z-0"></div>
         </>
       )}
-      {bgImage && <div className="absolute inset-0 bg-black/70"></div>}
       
       <div className="relative z-10 flex justify-between items-center mb-6">
         <div className="flex gap-1">
@@ -362,9 +417,9 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
           tagName="h2" 
           className={`font-['Outfit'] font-black leading-none mb-6 text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400 ${titleSize}`} 
           value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-          styleOverride={overrides.titleColor ? { color: overrides.titleColor, WebkitTextFillColor: 'initial', backgroundImage: 'none' } : overrides.color ? { color: overrides.color, WebkitTextFillColor: 'initial', backgroundImage: 'none' } : {}}
+          styleOverride={overrides.titleColor ? { color: overrides.titleColor, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.fontFamily } : overrides.color ? { color: overrides.color, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.fontFamily } : { fontFamily: overrides.fontFamily }}
         />
-        <EditableText tagName="p" className="font-['Outfit'] font-light text-lg leading-snug text-zinc-300" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color }} />
+        <EditableText tagName="p" className="font-['Outfit'] font-light text-lg leading-snug text-zinc-300" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
       </div>
     </div>
   );
@@ -373,14 +428,17 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
 const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, isDark, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : (isFirst ? 'text-4xl' : 'text-2xl');
-  const style = getBackgroundStyle(bgImage, overrides);
+  const bgConfig = getBackgroundConfig(bgImage, overrides);
+
+  const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? (isDark ? 0.7 : 0.2) : 0);
 
   return (
     <div 
       className={`w-full h-full flex flex-col justify-between p-8 transition-all duration-300 select-none relative overflow-hidden ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
-      style={style}
+      style={{ fontFamily: overrides.fontFamily }}
     >
-       {bgImage && <div className={`absolute inset-0 ${isDark ? 'bg-black/70' : 'bg-white/80'} z-0`}></div>}
+       <BackgroundLayer bgConfig={bgConfig} overlayOpacity={overlayOpacity} />
+
       <div className="relative z-10 flex justify-between items-center opacity-50">
         <div className="flex items-center gap-1"><span className="text-xs font-semibold uppercase tracking-widest font-['Inter']">AI Carousel</span></div>
         <span className="text-xs font-mono">{data.number} / {totalSlides}</span>
@@ -390,13 +448,13 @@ const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides,
           tagName="h2" 
           className={`font-bold leading-tight tracking-tight font-['Inter'] ${isDark ? 'text-white' : 'text-zinc-900'} ${titleSize}`} 
           value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-          styleOverride={{ color: overrides.titleColor || overrides.color }}
+          styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.fontFamily }}
         />
         {data.highlight && !isLast && (
-          <div className="mt-2"><span className={`inline-block px-3 py-1 mt-4 rounded-lg text-sm font-bold uppercase tracking-wider ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}><EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} /></span></div>
+          <div className="mt-2"><span className={`inline-block px-3 py-1 mt-4 rounded-lg text-sm font-bold uppercase tracking-wider ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}><EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} styleOverride={{ fontFamily: overrides.fontFamily }} /></span></div>
         )}
         <div className={`text-lg font-medium leading-relaxed mt-4 font-['Inter'] ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-           <EditableText tagName="p" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color }} />
+           <EditableText tagName="p" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
         </div>
       </div>
       <div className="relative z-10 flex justify-between items-end mt-4 pt-4 border-t border-dashed border-opacity-20" style={{ borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }}>
