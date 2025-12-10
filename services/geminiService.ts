@@ -1,24 +1,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SlideData, Tone } from "../types";
 
-// SECURITY WARNING: API key is exposed in client-side code!
-// RECOMMENDED: Move this to a backend proxy (Express/Cloudflare Workers/Firebase Functions)
-// For production, create an API endpoint that forwards requests to Gemini API
-// Client -> Your Backend -> Gemini API (with secure API key)
-
 // Initialize the client
-// For Vite, use VITE_ prefix for environment variables
-const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-if (!apiKey) {
-  throw new Error(
-    'VITE_GEMINI_API_KEY is not set. Please add it to your .env file.\n' +
-    'WARNING: This API key will be visible in the client bundle. ' +
-    'For production, use a backend proxy instead.'
-  );
-}
-
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const getToneDescription = (tone: Tone): string => {
   switch (tone) {
@@ -99,38 +83,20 @@ export const generateCarouselContent = async (
       throw new Error("Empty response from AI");
     }
 
-    interface RawSlide {
-      title: string;
-      content: string;
-      highlight?: string | null;
-      cta?: string | null;
-    }
+    const rawSlides = JSON.parse(jsonText) as any[];
 
-    const rawSlides = JSON.parse(jsonText) as RawSlide[];
-
-    // Validate response structure
-    if (!Array.isArray(rawSlides)) {
-      throw new Error("Invalid response format: expected array");
-    }
-
-    // Map to ensure numbering and validate each slide
-    return rawSlides.map((slide, index) => {
-      if (!slide.title || !slide.content) {
-        throw new Error(`Invalid slide ${index + 1}: missing title or content`);
-      }
-      return {
-        number: index + 1,
-        title: slide.title,
-        content: slide.content,
-        highlight: slide.highlight || undefined,
-        cta: slide.cta || undefined
-      };
-    });
+    // Map to ensure numbering
+    return rawSlides.map((slide, index) => ({
+      number: index + 1,
+      title: slide.title,
+      content: slide.content,
+      highlight: slide.highlight || undefined,
+      cta: slide.cta || undefined
+    }));
 
   } catch (error) {
     console.error("Gemini API Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    throw new Error(`Не удалось сгенерировать карусель: ${errorMessage}`);
+    throw new Error("Не удалось сгенерировать карусель. Попробуйте другую тему.");
   }
 };
 
@@ -180,19 +146,7 @@ export const regenerateSlideContent = async (
     const jsonText = response.text;
     if (!jsonText) throw new Error("Empty response");
 
-    interface RegeneratedContent {
-      title: string;
-      content: string;
-      highlight?: string | null;
-      cta?: string | null;
-    }
-
-    const newContent = JSON.parse(jsonText) as RegeneratedContent;
-
-    // Validate response
-    if (!newContent.title || !newContent.content) {
-      throw new Error("Invalid response: missing title or content");
-    }
+    const newContent = JSON.parse(jsonText);
 
     return {
       ...currentSlide,
@@ -204,8 +158,7 @@ export const regenerateSlideContent = async (
 
   } catch (error) {
     console.error("Gemini Slide Regen Error:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    throw new Error(`Не удалось перегенерировать слайд: ${errorMessage}`);
+    throw new Error("Не удалось перегенерировать слайд.");
   }
 };
 

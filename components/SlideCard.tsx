@@ -69,18 +69,10 @@ const applyHighlights = (text: string, theme: Theme) => {
 };
 
 // --- HELPER FOR BACKGROUND ---
-interface StyleOverrides {
-  textAlign?: TextAlign;
-  color?: string;
-  titleColor?: string;
-  overlayOpacity?: number;
-  fontFamily?: string;
-}
-
-const getBackgroundConfig = (bgImage: string | null | undefined, overrides: StyleOverrides) => {
-    let backgroundImage: string | undefined = undefined;
-    let backgroundColor: string | undefined = undefined;
-    let background: string | undefined = undefined;
+const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any) => {
+    let backgroundImage = null;
+    let backgroundColor = undefined;
+    let background = undefined;
 
     if (bgImage) {
         if (bgImage.startsWith('http') || bgImage.startsWith('data:image')) {
@@ -96,7 +88,7 @@ const getBackgroundConfig = (bgImage: string | null | undefined, overrides: Styl
         backgroundImage,
         backgroundColor,
         background,
-        textAlign: overrides.textAlign,
+        textAlign: overrides.textAlign || undefined,
         color: overrides.color,
     };
 };
@@ -248,7 +240,7 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
 };
 
 // --- UTILS FOR STYLE OVERRIDES ---
-const getOverrides = (customStyle?: SlideStyle): StyleOverrides => {
+const getOverrides = (customStyle?: SlideStyle) => {
   if (!customStyle) return {};
   return {
     textAlign: customStyle.textAlign,
@@ -259,24 +251,9 @@ const getOverrides = (customStyle?: SlideStyle): StyleOverrides => {
   };
 };
 
-// --- THEME CARD PROPS ---
-interface ThemeCardProps {
-  data: SlideData;
-  theme: Theme;
-  bgImage?: string | null;
-  username: string;
-  onSlideChange: (field: keyof SlideData, value: string) => void;
-  readOnly: boolean;
-  customStyle?: SlideStyle;
-  totalSlides: number;
-  isFirst?: boolean;
-  isLast?: boolean;
-  isDark?: boolean;
-}
-
 // --- STYLE COMPONENTS ---
 
-const DarkModernCard: React.FC<ThemeCardProps> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
+const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-[20px]';
   const contentSize = customStyle ? getSizeClass(customStyle.fontSize, 'content') : 'text-[13px]';
@@ -339,7 +316,7 @@ const DarkModernCard: React.FC<ThemeCardProps> = ({ data, theme, bgImage, userna
   );
 };
 
-const RetroPaperCard: React.FC<ThemeCardProps> = ({ data, theme, isFirst, isLast, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
+const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-5xl';
   const bgConfig = getBackgroundConfig(bgImage, overrides);
@@ -371,7 +348,7 @@ const RetroPaperCard: React.FC<ThemeCardProps> = ({ data, theme, isFirst, isLast
           <EditableText tagName="p" className="font-['Courier_Prime'] text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
         </div>
         <div className="mt-auto pt-6 flex justify-between items-center">
-           {isFirst && <div className="text-[10px] font-mono">SWIPE -&gt;</div>}
+           {isFirst && <div className="text-[10px] font-mono">SWIPE -></div>}
            {isLast && data.cta ? (
               <div className={`w-full bg-black text-white text-center font-['Anton'] uppercase text-lg transition-colors ${!readOnly ? 'cursor-pointer pointer-events-auto hover:bg-zinc-800' : ''}`}>
                 <EditableText tagName="div" className="py-2" value={data.cta} onChange={(val: string) => onSlideChange('cta', val)} readOnly={readOnly} theme={theme} />
@@ -383,7 +360,7 @@ const RetroPaperCard: React.FC<ThemeCardProps> = ({ data, theme, isFirst, isLast
   );
 };
 
-const BoldNeonCard: React.FC<ThemeCardProps> = ({ data, theme, totalSlides, bgImage, onSlideChange, readOnly, customStyle }) => {
+const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-4xl';
   const bgConfig = getBackgroundConfig(bgImage, overrides);
@@ -426,7 +403,7 @@ const BoldNeonCard: React.FC<ThemeCardProps> = ({ data, theme, totalSlides, bgIm
   );
 };
 
-const MinimalCard: React.FC<ThemeCardProps> = ({ data, theme, isFirst, isLast, totalSlides, isDark, bgImage, username, onSlideChange, readOnly, customStyle }) => {
+const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, isDark, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : (isFirst ? 'text-4xl' : 'text-2xl');
   const bgConfig = getBackgroundConfig(bgImage, overrides);

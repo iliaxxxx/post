@@ -7,18 +7,9 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dependencies
 node_modules
-
-# Build output
 dist
 dist-ssr
-build
-
-# Environment variables (SECURITY)
-.env
-.env.local
-.env.production
 *.local
 
 # Editor directories and files
@@ -31,10 +22,3 @@ build
 *.njsproj
 *.sln
 *.sw?
-
-# Testing
-coverage
-
-# Cache
-.cache
-*.tmp
