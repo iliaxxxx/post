@@ -3,7 +3,7 @@ import { generateCarouselContent, regenerateSlideContent, generateBackgroundImag
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -25,7 +25,7 @@ const DEMO_SLIDES: SlideData[] = [
   {
     number: 3,
     title: "Результат Справа",
-    content: "Смотрите превью в реальном времени на мокапе iPhone.",
+    content: "Смотрите превью в реальном времени на мокапе iPhone. Кликни на текст, чтобы изменить его.",
     cta: "Попробуй сейчас"
   }
 ];
@@ -148,6 +148,20 @@ const App: React.FC = () => {
     }
   };
 
+  // NEW: Logic to actually save edits made directly on the slide
+  const handleContentChange = (field: keyof SlideData, value: string) => {
+    setSlides(prev => {
+      const newSlides = [...prev];
+      if (newSlides[activeSlideIndex]) {
+        newSlides[activeSlideIndex] = {
+          ...newSlides[activeSlideIndex],
+          [field]: value
+        };
+      }
+      return newSlides;
+    });
+  };
+
   // Helper to update styles for ONE slide
   const updateSlideStyle = (updates: Partial<SlideStyle>) => {
     const slideNum = slides[activeSlideIndex]?.number;
@@ -170,6 +184,31 @@ const App: React.FC = () => {
       });
       return newStyles;
     });
+  };
+
+  // NEW: Helper to apply current slide's background to ALL slides
+  const handleApplyBgToAll = () => {
+    const currentSlideNum = slides[activeSlideIndex].number;
+    const currentBg = slideStyles[currentSlideNum]?.backgroundValue;
+    
+    if (!currentBg) return;
+
+    setSlideStyles(prev => {
+      const newStyles = { ...prev };
+      slides.forEach(s => {
+        newStyles[s.number] = {
+          ...(newStyles[s.number] || DEFAULT_STYLE),
+          backgroundType: 'image',
+          backgroundValue: currentBg
+        };
+      });
+      return newStyles;
+    });
+  };
+
+  // NEW: Helper to remove background from current slide
+  const handleRemoveBg = () => {
+    updateSlideStyle({ backgroundType: 'solid', backgroundValue: '' });
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -372,6 +411,51 @@ const App: React.FC = () => {
                 />
              </div>
 
+             {/* Background Controls - MOVED HERE & EXPANDED */}
+             <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                   <ImagePlus size={14} className="text-slate-400" />
+                   <label className="text-xs font-semibold text-slate-500">Фон слайда</label>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+                    >
+                        <ImagePlus size={14} />
+                        Загрузить
+                    </button>
+                    
+                    <button
+                        onClick={handleAiBackgroundGeneration}
+                         className="px-3 py-2 bg-purple-50 text-purple-600 rounded-xl text-xs font-bold hover:bg-purple-100 transition-colors"
+                         title="AI Генерация фона"
+                    >
+                        <Sparkles size={14} />
+                    </button>
+                </div>
+
+                {/* Actions for existing background */}
+                {currentStyle.backgroundType === 'image' && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                        <button
+                            onClick={handleApplyBgToAll}
+                            className="py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                        >
+                            <Copy size={12} />
+                            Применить ко всем
+                        </button>
+                        <button
+                            onClick={handleRemoveBg}
+                            className="py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                        >
+                            <Trash2 size={12} />
+                            Убрать фон
+                        </button>
+                    </div>
+                )}
+             </div>
+
              {/* Font Size */}
              <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -537,7 +621,7 @@ const App: React.FC = () => {
                   theme={config.theme}
                   totalSlides={currentTotal}
                   username={username}
-                  onSlideChange={(f, v) => handleSlideUpdate(f, v)}
+                  onSlideChange={handleContentChange}
                   onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
                   onUploadBg={() => fileInputRef.current?.click()}
                   onGenerateBg={() => handleAiBackgroundGeneration()}
@@ -574,9 +658,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-// Helper function for inline edits
-function handleSlideUpdate(field: any, value: any) {
-  // Placeholder logic handled within components via props, 
-  // but kept for structure consistency if expanded.
-}
