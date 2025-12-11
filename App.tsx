@@ -3,7 +3,7 @@ import { generateCarouselContent, regenerateSlideContent, generateBackgroundImag
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -40,23 +40,37 @@ const FONTS = [
   { name: 'Anton', label: 'Anton (Heavy)' },
 ];
 
+const COLOR_PRESETS = [
+  '#000000', '#FFFFFF', '#F43F5E', '#8B5CF6', 
+  '#3B82F6', '#10B981', '#F59E0B', '#64748B'
+];
+
+type MobileTab = 'generator' | 'design' | null;
+
 const App: React.FC = () => {
   // --- STATE ---
   const [config, setConfig] = useState<CarouselConfig>({
     topic: '',
     slideCount: 5,
-    theme: Theme.DARK_MODERN, // Enforced Default
+    theme: Theme.DARK_MODERN,
     tone: Tone.EXPERT
   });
 
-  // UI State for Sliders
   const [toneValue, setToneValue] = useState<number>(0); // 0-100
   const [username, setUsername] = useState<string>('@my_blog');
   const [slides, setSlides] = useState<SlideData[]>(DEMO_SLIDES);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Mobile UI State
+  const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>(null);
 
-  // Editing State (Per-slide overrides)
+  // Swipe State
+  const touchStart = useRef<number | null>(null);
+  const touchEnd = useRef<number | null>(null);
+  const minSwipeDistance = 50;
+
+  // Editing State
   const [slideStyles, setSlideStyles] = useState<Record<number, SlideStyle>>({});
   const [loadingSlides, setLoadingSlides] = useState<Record<number, boolean>>({});
 
@@ -64,9 +78,7 @@ const App: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
-  // --- INITIALIZATION ---
-  
-  // Apply default styles when slides change
+  // --- EFFECTS ---
   useEffect(() => {
     if (slides.length > 0) {
       const newStyles = { ...slideStyles };
@@ -81,7 +93,7 @@ const App: React.FC = () => {
     }
   }, [slides.length]);
 
-  // --- LOGIC ---
+  // --- LOGIC HELPERS ---
 
   const mapSliderToTone = (val: number): Tone => {
     if (val < 20) return Tone.EXPERT;
@@ -102,12 +114,13 @@ const App: React.FC = () => {
   const handleGenerate = async () => {
     if (!config.topic) return alert("Введите тему");
     setIsGenerating(true);
+    setActiveMobileTab(null); // Close drawer on mobile
     try {
       const tone = mapSliderToTone(toneValue);
       const generatedSlides = await generateCarouselContent(config.topic, config.slideCount, tone);
       setSlides(generatedSlides);
       setActiveSlideIndex(0);
-      setSlideStyles({}); // Reset styles for new content
+      setSlideStyles({});
       setConfig(prev => ({ ...prev, tone }));
     } catch (error) {
       alert("Ошибка генерации. Попробуйте еще раз.");
@@ -139,7 +152,7 @@ const App: React.FC = () => {
     setLoadingSlides(prev => ({ ...prev, [slide.number]: true }));
     try {
       const imageUrl = await generateBackgroundImage(config.topic, slide);
-      updateSlideStyle({ backgroundType: 'image', backgroundValue: imageUrl }); // Updates current slide
+      updateSlideStyle({ backgroundType: 'image', backgroundValue: imageUrl });
     } catch (err) {
       console.error(err);
       alert("Не удалось сгенерировать изображение.");
@@ -148,7 +161,6 @@ const App: React.FC = () => {
     }
   };
 
-  // NEW: Logic to actually save edits made directly on the slide
   const handleContentChange = (field: keyof SlideData, value: string) => {
     setSlides(prev => {
       const newSlides = [...prev];
@@ -162,7 +174,6 @@ const App: React.FC = () => {
     });
   };
 
-  // Helper to update styles for ONE slide
   const updateSlideStyle = (updates: Partial<SlideStyle>) => {
     const slideNum = slides[activeSlideIndex]?.number;
     if (!slideNum) return;
@@ -172,7 +183,6 @@ const App: React.FC = () => {
     }));
   };
 
-  // Helper to update styles for ALL slides
   const updateGlobalStyle = (updates: Partial<SlideStyle>) => {
     setSlideStyles(prev => {
       const newStyles = { ...prev };
@@ -186,13 +196,10 @@ const App: React.FC = () => {
     });
   };
 
-  // NEW: Helper to apply current slide's background to ALL slides
   const handleApplyBgToAll = () => {
     const currentSlideNum = slides[activeSlideIndex].number;
     const currentBg = slideStyles[currentSlideNum]?.backgroundValue;
-    
     if (!currentBg) return;
-
     setSlideStyles(prev => {
       const newStyles = { ...prev };
       slides.forEach(s => {
@@ -206,7 +213,6 @@ const App: React.FC = () => {
     });
   };
 
-  // NEW: Helper to remove background from current slide
   const handleRemoveBg = () => {
     updateSlideStyle({ backgroundType: 'solid', backgroundValue: '' });
   };
@@ -252,54 +258,312 @@ const App: React.FC = () => {
       const zip = new JSZip();
       const element = exportRef.current;
       const children = Array.from(element.children) as HTMLElement[];
-
-      // Ensure full opacity for capture
       element.style.opacity = '1';
       
       const promises = children.map(async (child, i) => {
-        // Render at 360x450 (preview size) and scale x3 to get 1080x1350
-        // This ensures the layout and font sizes match the preview exactly.
         const dataUrl = await toPng(child, { 
-          cacheBust: true, 
-          pixelRatio: 3,
-          width: 360,
-          height: 450,
-          style: {
-            transform: 'none', // Reset potential transforms
-          }
+          cacheBust: true, pixelRatio: 3, width: 360, height: 450,
+          style: { transform: 'none' }
         });
         const base64 = dataUrl.split(',')[1];
         zip.file(`slide-${i + 1}.png`, base64, { base64: true });
       });
 
       await Promise.all(promises);
-      
       element.style.opacity = '0';
-
       const content = await zip.generateAsync({ type: 'blob' });
       saveAs(content, 'carousel-kit.zip');
     } catch (err) {
       console.error("Export failed", err);
-      alert("Ошибка экспорта. Попробуйте еще раз.");
+      alert("Ошибка экспорта.");
+    }
+  };
+
+  // --- SWIPE HANDLERS ---
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchEnd.current = null;
+    touchStart.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    touchEnd.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart.current || !touchEnd.current) return;
+    const distance = touchStart.current - touchEnd.current;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    if (isLeftSwipe && activeSlideIndex < slides.length - 1) {
+       setActiveSlideIndex(prev => prev + 1);
+    }
+    if (isRightSwipe && activeSlideIndex > 0) {
+       setActiveSlideIndex(prev => prev - 1);
     }
   };
 
   const toneInfo = getToneLabel(toneValue);
   const currentSlideData = slides[activeSlideIndex];
-  const currentTotal = slides.length;
   const currentStyle = slideStyles[currentSlideData.number] || DEFAULT_STYLE;
 
-  // Swatches for color presets
-  const COLOR_PRESETS = [
-    '#000000', '#FFFFFF', '#F43F5E', '#8B5CF6', 
-    '#3B82F6', '#10B981', '#F59E0B', '#64748B'
-  ];
+  // --- HELPER FOR RENDERING SLIDE ---
+  const renderCurrentSlide = (isMobile: boolean) => (
+      <SlideCard 
+        data={currentSlideData}
+        theme={config.theme}
+        totalSlides={slides.length}
+        username={username}
+        onSlideChange={handleContentChange}
+        onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
+        onUploadBg={() => fileInputRef.current?.click()}
+        onGenerateBg={() => handleAiBackgroundGeneration()}
+        isRegenerating={loadingSlides[currentSlideData.number]}
+        customStyle={currentStyle}
+        className="w-full h-full"
+      />
+  );
+
+  // --- SHARED UI COMPONENTS (RENDER FUNCTIONS) ---
+
+  const renderGeneratorControls = () => (
+    <section className="space-y-5">
+      <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
+        <Wand2 size={16} className="text-purple-500" />
+        Генератор
+      </div>
+      
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-slate-500 ml-1">Тема карусели</label>
+        <input 
+          type="text" 
+          value={config.topic}
+          onChange={e => setConfig(prev => ({ ...prev, topic: e.target.value }))}
+          placeholder="Например: 5 ошибок в дизайне..."
+          className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 transition-all font-medium placeholder:text-slate-400"
+        />
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex justify-between items-end">
+          <label className="text-xs font-semibold text-slate-500 ml-1">Tone of Voice</label>
+          <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+            {toneInfo.emoji} {toneInfo.label}
+          </span>
+        </div>
+        <input 
+          type="range" min="0" max="100" step="1"
+          value={toneValue}
+          onChange={e => setToneValue(parseInt(e.target.value))}
+          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+        />
+        <p className="text-[10px] text-slate-400 text-center italic">{toneInfo.desc}</p>
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex justify-between items-end">
+          <label className="text-xs font-semibold text-slate-500 ml-1">Количество слайдов</label>
+          <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
+            {config.slideCount} шт.
+          </span>
+        </div>
+        <input 
+          type="range" min="3" max="10" step="1"
+          value={config.slideCount}
+          onChange={e => setConfig(prev => ({ ...prev, slideCount: parseInt(e.target.value) }))}
+          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pink-500"
+        />
+      </div>
+
+      <button 
+        onClick={handleGenerate}
+        disabled={isGenerating}
+        className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        {isGenerating ? (
+          <>
+            <RefreshCw size={18} className="animate-spin" />
+            Генерирую...
+          </>
+        ) : (
+          <>
+            <Sparkles size={18} />
+            Сгенерировать
+          </>
+        )}
+      </button>
+    </section>
+  );
+
+  const renderDesignControls = () => (
+    <section className="space-y-6">
+      <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
+        <Palette size={16} className="text-pink-500" />
+        Дизайн
+      </div>
+
+      <div className="space-y-2">
+         <div className="flex items-center gap-2">
+            <AtSign size={14} className="text-slate-400" />
+            <label className="text-xs font-semibold text-slate-500">Никнейм</label>
+         </div>
+         <input 
+           type="text" 
+           value={username}
+           onChange={(e) => setUsername(e.target.value)}
+           className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+           placeholder="@username"
+         />
+      </div>
+
+      <div className="space-y-2">
+         <div className="flex items-center gap-2">
+            <ImagePlus size={14} className="text-slate-400" />
+            <label className="text-xs font-semibold text-slate-500">Фон слайда</label>
+         </div>
+         <div className="flex gap-2">
+             <button
+                 onClick={() => fileInputRef.current?.click()}
+                 className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+             >
+                 <ImagePlus size={14} />
+                 Загрузить
+             </button>
+             
+             <button
+                 onClick={handleAiBackgroundGeneration}
+                  className="px-3 py-2 bg-purple-50 text-purple-600 rounded-xl text-xs font-bold hover:bg-purple-100 transition-colors"
+                  title="AI Генерация фона"
+             >
+                 <Sparkles size={14} />
+             </button>
+         </div>
+
+         {currentStyle.backgroundType === 'image' && (
+             <div className="grid grid-cols-2 gap-2 mt-2">
+                 <button
+                     onClick={handleApplyBgToAll}
+                     className="py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
+                 >
+                     <Copy size={12} />
+                     Ко всем
+                 </button>
+                 <button
+                     onClick={handleRemoveBg}
+                     className="py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
+                 >
+                     <Trash2 size={12} />
+                     Убрать
+                 </button>
+             </div>
+         )}
+      </div>
+
+      <div className="space-y-2">
+         <div className="flex items-center gap-2">
+            <Type size={14} className="text-slate-400" />
+            <label className="text-xs font-semibold text-slate-500">Размер текста</label>
+         </div>
+         <div className="grid grid-cols-4 gap-2 bg-slate-100 p-1 rounded-xl">
+             {(['small', 'medium', 'large', 'extra'] as const).map((size) => (
+               <button
+                 key={size}
+                 onClick={() => updateGlobalStyle({ fontSize: size })}
+                 className={`py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all uppercase ${
+                   (currentStyle.fontSize || 'medium') === size 
+                     ? 'bg-white text-purple-600 shadow-sm' 
+                     : 'text-slate-500 hover:text-slate-700'
+                 }`}
+               >
+                 {size === 'small' ? 'S' : size === 'medium' ? 'M' : size === 'large' ? 'L' : 'XL'}
+               </button>
+             ))}
+         </div>
+      </div>
+
+      <div className="space-y-2">
+         <div className="flex items-center gap-2">
+            <Type size={14} className="text-slate-400" />
+            <label className="text-xs font-semibold text-slate-500">Шрифт</label>
+         </div>
+         <select 
+           className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+           value={currentStyle.fontFamily || ''}
+           onChange={(e) => updateGlobalStyle({ fontFamily: e.target.value })}
+         >
+           <option value="">По умолчанию</option>
+           {FONTS.map(f => (
+             <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
+           ))}
+         </select>
+      </div>
+
+      <div className="space-y-4">
+         <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 ml-1">Цвет Заголовка</label>
+            <div className="grid grid-cols-8 gap-2">
+               <button 
+                  onClick={() => updateGlobalStyle({ titleColor: '' })}
+                  className={`w-8 h-8 rounded-full border border-slate-200 bg-transparent flex items-center justify-center text-[10px] text-slate-400 hover:bg-slate-50 ${!currentStyle.titleColor ? 'ring-2 ring-purple-500' : ''}`}
+                  title="Сброс"
+               >
+                  A
+               </button>
+               {COLOR_PRESETS.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => updateGlobalStyle({ titleColor: color })}
+                    className={`w-8 h-8 rounded-full border border-black/5 shadow-sm transition-transform hover:scale-110 ${currentStyle.titleColor === color ? 'ring-2 ring-purple-500 ring-offset-1' : ''}`}
+                    style={{ backgroundColor: color }}
+                  />
+               ))}
+            </div>
+         </div>
+         <div className="space-y-2">
+            <label className="text-xs font-semibold text-slate-500 ml-1">Цвет Текста</label>
+            <div className="grid grid-cols-8 gap-2">
+               <button 
+                  onClick={() => updateGlobalStyle({ textColor: '' })}
+                  className={`w-8 h-8 rounded-full border border-slate-200 bg-transparent flex items-center justify-center text-[10px] text-slate-400 hover:bg-slate-50 ${!currentStyle.textColor ? 'ring-2 ring-purple-500' : ''}`}
+                  title="Сброс"
+               >
+                  A
+               </button>
+               {COLOR_PRESETS.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => updateGlobalStyle({ textColor: color })}
+                    className={`w-8 h-8 rounded-full border border-black/5 shadow-sm transition-transform hover:scale-110 ${currentStyle.textColor === color ? 'ring-2 ring-purple-500 ring-offset-1' : ''}`}
+                    style={{ backgroundColor: color }}
+                  />
+               ))}
+            </div>
+         </div>
+      </div>
+
+      <div className="space-y-3 pt-2">
+         <div className="flex justify-between items-end mb-2">
+            <div className="flex items-center gap-2">
+              <Layers size={14} className="text-slate-400" />
+              <label className="text-xs font-semibold text-slate-500">Затемнение фото</label>
+            </div>
+            <span className="text-xs font-mono text-slate-400">{Math.round((currentStyle.overlayOpacity || 0.2) * 100)}%</span>
+         </div>
+         <input 
+           type="range" min="0" max="0.9" step="0.05"
+           value={currentStyle.overlayOpacity !== undefined ? currentStyle.overlayOpacity : 0.2}
+           onChange={(e) => updateGlobalStyle({ overlayOpacity: parseFloat(e.target.value) })}
+           className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600"
+         />
+      </div>
+    </section>
+  );
 
   return (
-    <div className="flex flex-col lg:flex-row h-auto lg:h-screen w-full bg-[#f8fafc] text-slate-800 font-sans overflow-x-hidden lg:overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[100dvh] w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
       
-      {/* --- LEFT SIDEBAR (Controls) --- */}
-      <div className="order-2 lg:order-1 w-full lg:w-[420px] h-auto lg:h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex flex-col shadow-2xl z-20 relative lg:flex-none">
+      {/* --- DESKTOP LEFT SIDEBAR --- */}
+      <div className="hidden lg:flex w-[420px] h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex-col shadow-2xl z-20 relative">
         <div className="p-6 border-b border-gray-100 bg-white/50">
            <div className="flex items-center gap-2 mb-1">
              <div className="w-8 h-8 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white shadow-lg">
@@ -312,255 +576,10 @@ const App: React.FC = () => {
            <p className="text-xs text-slate-400 font-medium ml-10">AI-Powered Instagram Generator</p>
         </div>
 
-        <div className="flex-1 lg:overflow-y-auto no-scrollbar p-6 space-y-8">
-          
-          {/* 1. GENERATOR SECTION */}
-          <section className="space-y-5">
-             <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
-               <Wand2 size={16} className="text-purple-500" />
-               Генератор
-             </div>
-             
-             {/* Topic */}
-             <div className="space-y-2">
-               <label className="text-xs font-semibold text-slate-500 ml-1">Тема карусели</label>
-               <input 
-                 type="text" 
-                 value={config.topic}
-                 onChange={e => setConfig(prev => ({ ...prev, topic: e.target.value }))}
-                 placeholder="Например: 5 ошибок в дизайне..."
-                 className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 transition-all font-medium placeholder:text-slate-400"
-               />
-             </div>
-
-             {/* Tone Slider */}
-             <div className="space-y-3">
-               <div className="flex justify-between items-end">
-                 <label className="text-xs font-semibold text-slate-500 ml-1">Tone of Voice</label>
-                 <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md flex items-center gap-1">
-                   {toneInfo.emoji} {toneInfo.label}
-                 </span>
-               </div>
-               <input 
-                 type="range" 
-                 min="0" max="100" step="1"
-                 value={toneValue}
-                 onChange={e => setToneValue(parseInt(e.target.value))}
-                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-               />
-               <p className="text-[10px] text-slate-400 text-center italic">{toneInfo.desc}</p>
-             </div>
-
-             {/* Slide Count */}
-             <div className="space-y-3">
-               <div className="flex justify-between items-end">
-                 <label className="text-xs font-semibold text-slate-500 ml-1">Количество слайдов</label>
-                 <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                   {config.slideCount} шт.
-                 </span>
-               </div>
-               <input 
-                 type="range" 
-                 min="3" max="10" step="1"
-                 value={config.slideCount}
-                 onChange={e => setConfig(prev => ({ ...prev, slideCount: parseInt(e.target.value) }))}
-                 className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pink-500"
-               />
-             </div>
-
-             <button 
-               onClick={handleGenerate}
-               disabled={isGenerating}
-               className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-             >
-               {isGenerating ? (
-                 <>
-                   <RefreshCw size={18} className="animate-spin" />
-                   Генерирую...
-                 </>
-               ) : (
-                 <>
-                   <Sparkles size={18} />
-                   Сгенерировать
-                 </>
-               )}
-             </button>
-          </section>
-
+        <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
+          {renderGeneratorControls()}
           <div className="h-px bg-slate-100 w-full"></div>
-
-          {/* 2. CUSTOMIZATION SECTION */}
-          <section className="space-y-6">
-             <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
-               <Palette size={16} className="text-pink-500" />
-               Дизайн
-             </div>
-
-             {/* Username Input */}
-             <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                   <AtSign size={14} className="text-slate-400" />
-                   <label className="text-xs font-semibold text-slate-500">Никнейм</label>
-                </div>
-                <input 
-                  type="text" 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
-                  placeholder="@username"
-                />
-             </div>
-
-             {/* Background Controls - MOVED HERE & EXPANDED */}
-             <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                   <ImagePlus size={14} className="text-slate-400" />
-                   <label className="text-xs font-semibold text-slate-500">Фон слайда</label>
-                </div>
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
-                    >
-                        <ImagePlus size={14} />
-                        Загрузить
-                    </button>
-                    
-                    <button
-                        onClick={handleAiBackgroundGeneration}
-                         className="px-3 py-2 bg-purple-50 text-purple-600 rounded-xl text-xs font-bold hover:bg-purple-100 transition-colors"
-                         title="AI Генерация фона"
-                    >
-                        <Sparkles size={14} />
-                    </button>
-                </div>
-
-                {/* Actions for existing background */}
-                {currentStyle.backgroundType === 'image' && (
-                    <div className="grid grid-cols-2 gap-2 mt-2">
-                        <button
-                            onClick={handleApplyBgToAll}
-                            className="py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
-                        >
-                            <Copy size={12} />
-                            Применить ко всем
-                        </button>
-                        <button
-                            onClick={handleRemoveBg}
-                            className="py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
-                        >
-                            <Trash2 size={12} />
-                            Убрать фон
-                        </button>
-                    </div>
-                )}
-             </div>
-
-             {/* Font Size */}
-             <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                   <Type size={14} className="text-slate-400" />
-                   <label className="text-xs font-semibold text-slate-500">Размер текста</label>
-                </div>
-                <div className="grid grid-cols-4 gap-2 bg-slate-100 p-1 rounded-xl">
-                    {(['small', 'medium', 'large', 'extra'] as const).map((size) => (
-                      <button
-                        key={size}
-                        onClick={() => updateGlobalStyle({ fontSize: size })}
-                        className={`py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all uppercase ${
-                          (currentStyle.fontSize || 'medium') === size 
-                            ? 'bg-white text-purple-600 shadow-sm' 
-                            : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                      >
-                        {size === 'small' ? 'S' : size === 'medium' ? 'M' : size === 'large' ? 'L' : 'XL'}
-                      </button>
-                    ))}
-                </div>
-             </div>
-
-             {/* Fonts */}
-             <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                   <Type size={14} className="text-slate-400" />
-                   <label className="text-xs font-semibold text-slate-500">Шрифт</label>
-                </div>
-                <select 
-                  className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
-                  value={currentStyle.fontFamily || ''}
-                  onChange={(e) => updateGlobalStyle({ fontFamily: e.target.value })}
-                >
-                  <option value="">По умолчанию</option>
-                  {FONTS.map(f => (
-                    <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
-                  ))}
-                </select>
-             </div>
-
-             {/* Colors */}
-             <div className="space-y-4">
-                <div className="space-y-2">
-                   <label className="text-xs font-semibold text-slate-500 ml-1">Цвет Заголовка</label>
-                   <div className="grid grid-cols-8 gap-2">
-                      <button 
-                         onClick={() => updateGlobalStyle({ titleColor: '' })}
-                         className={`w-8 h-8 rounded-full border border-slate-200 bg-transparent flex items-center justify-center text-[10px] text-slate-400 hover:bg-slate-50 ${!currentStyle.titleColor ? 'ring-2 ring-purple-500' : ''}`}
-                         title="Сброс"
-                      >
-                         A
-                      </button>
-                      {COLOR_PRESETS.map(color => (
-                         <button
-                           key={color}
-                           onClick={() => updateGlobalStyle({ titleColor: color })}
-                           className={`w-8 h-8 rounded-full border border-black/5 shadow-sm transition-transform hover:scale-110 ${currentStyle.titleColor === color ? 'ring-2 ring-purple-500 ring-offset-1' : ''}`}
-                           style={{ backgroundColor: color }}
-                         />
-                      ))}
-                   </div>
-                </div>
-                <div className="space-y-2">
-                   <label className="text-xs font-semibold text-slate-500 ml-1">Цвет Текста</label>
-                   <div className="grid grid-cols-8 gap-2">
-                      <button 
-                         onClick={() => updateGlobalStyle({ textColor: '' })}
-                         className={`w-8 h-8 rounded-full border border-slate-200 bg-transparent flex items-center justify-center text-[10px] text-slate-400 hover:bg-slate-50 ${!currentStyle.textColor ? 'ring-2 ring-purple-500' : ''}`}
-                         title="Сброс"
-                      >
-                         A
-                      </button>
-                      {COLOR_PRESETS.map(color => (
-                         <button
-                           key={color}
-                           onClick={() => updateGlobalStyle({ textColor: color })}
-                           className={`w-8 h-8 rounded-full border border-black/5 shadow-sm transition-transform hover:scale-110 ${currentStyle.textColor === color ? 'ring-2 ring-purple-500 ring-offset-1' : ''}`}
-                           style={{ backgroundColor: color }}
-                         />
-                      ))}
-                   </div>
-                </div>
-             </div>
-
-             {/* Background Opacity */}
-             <div className="space-y-3 pt-2">
-                <div className="flex justify-between items-end mb-2">
-                   <div className="flex items-center gap-2">
-                     <Layers size={14} className="text-slate-400" />
-                     <label className="text-xs font-semibold text-slate-500">Затемнение фото</label>
-                   </div>
-                   <span className="text-xs font-mono text-slate-400">{Math.round((currentStyle.overlayOpacity || 0.2) * 100)}%</span>
-                </div>
-                <input 
-                  type="range" 
-                  min="0" max="0.9" step="0.05"
-                  value={currentStyle.overlayOpacity !== undefined ? currentStyle.overlayOpacity : 0.2}
-                  onChange={(e) => updateGlobalStyle({ overlayOpacity: parseFloat(e.target.value) })}
-                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600"
-                />
-             </div>
-          </section>
-
-          {/* Export Button */}
+          {renderDesignControls()}
           <div className="pt-4 pb-10">
              <button 
                onClick={handleExport}
@@ -573,84 +592,147 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* --- HIDDEN INPUTS --- */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        className="hidden" 
-        onChange={handleImageUpload} 
-        accept="image/*" 
-        multiple 
-      />
+      {/* --- MOBILE DRAWER (BOTTOM SHEET) --- */}
+      {/* Overlay */}
+      {activeMobileTab && (
+        <div 
+          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
+          onClick={() => setActiveMobileTab(null)}
+        />
+      )}
+      
+      {/* Drawer Content */}
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] shadow-2xl z-50 transition-transform duration-300 ease-out flex flex-col max-h-[85vh] ${activeMobileTab ? 'translate-y-0' : 'translate-y-full'}`}>
+        <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setActiveMobileTab(null)}>
+           <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+        </div>
+        <div className="flex items-center justify-between px-6 pb-2">
+           <h2 className="text-lg font-bold text-slate-800">
+             {activeMobileTab === 'generator' ? 'Генератор' : 'Настройки дизайна'}
+           </h2>
+           <button onClick={() => setActiveMobileTab(null)} className="p-2 bg-slate-100 rounded-full text-slate-500">
+             <X size={18} />
+           </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
+           {activeMobileTab === 'generator' ? renderGeneratorControls() : renderDesignControls()}
+        </div>
+      </div>
 
-      {/* --- HIDDEN EXPORT CONTAINER --- */}
-      {/* 
-          We render the slides at a "mobile" resolution (360x450) to match the visual proportions 
-          of Tailwind classes (like text-xl, p-8) used in the preview. 
-          Then we use high pixelRatio during export to generate 1080x1350 images.
-      */}
+      {/* --- HIDDEN INPUTS & EXPORT --- */}
+      <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageUpload} accept="image/*" multiple />
       <div style={{ position: 'absolute', top: 0, left: 0, overflow: 'hidden', height: 0, width: 0, opacity: 0 }}>
         <div ref={exportRef}>
           {slides.map((slide) => (
             <div key={slide.number} style={{ width: '360px', height: '450px', position: 'relative' }}>
               <SlideCard
-                data={slide}
-                theme={config.theme} 
-                totalSlides={slides.length}
-                username={username}
-                onSlideChange={() => {}}
-                readOnly={true}
-                customStyle={slideStyles[slide.number]}
-                isRegenerating={false}
-                className="w-full h-full"
+                data={slide} theme={config.theme} totalSlides={slides.length} username={username}
+                onSlideChange={() => {}} readOnly={true} customStyle={slideStyles[slide.number]} isRegenerating={false} className="w-full h-full"
               />
             </div>
           ))}
         </div>
       </div>
 
-      {/* --- RIGHT AREA (PREVIEW) --- */}
-      <div className="order-1 lg:order-2 w-full lg:flex-1 h-[600px] lg:h-full relative flex flex-col items-center justify-center overflow-hidden bg-slate-50 lg:bg-transparent shrink-0">
+      {/* --- MAIN AREA (PREVIEW) --- */}
+      <div className="relative flex-1 h-full w-full flex flex-col overflow-hidden bg-slate-50 lg:bg-transparent">
+         {/* Mobile Header */}
+         <div className="lg:hidden absolute top-0 left-0 right-0 h-16 bg-white/60 backdrop-blur-md z-30 flex items-center justify-between px-4 border-b border-white/20">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white shadow-md">
+                 <Sparkles size={16} fill="currentColor" />
+              </div>
+              <span className="font-bold text-slate-800">CarouselKit</span>
+            </div>
+            <div className="px-3 py-1 bg-white rounded-full shadow-sm border border-slate-100 text-xs font-bold text-slate-600">
+               {activeSlideIndex + 1} / {slides.length}
+            </div>
+         </div>
+
          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 z-0"></div>
-         <div className="absolute top-[-20%] left-[-20%] w-[800px] h-[800px] bg-purple-200/40 rounded-full blur-[120px] pointer-events-none"></div>
          
-         <div className="relative z-10 scale-[0.65] sm:scale-[0.85] lg:scale-100 transition-transform duration-500 origin-center">
-             <PhoneFrame username={username} isDark={true}>
-               <SlideCard 
-                  data={currentSlideData}
-                  theme={config.theme}
-                  totalSlides={currentTotal}
-                  username={username}
-                  onSlideChange={handleContentChange}
-                  onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
-                  onUploadBg={() => fileInputRef.current?.click()}
-                  onGenerateBg={() => handleAiBackgroundGeneration()}
-                  isRegenerating={loadingSlides[currentSlideData.number]}
-                  customStyle={currentStyle}
-               />
-             </PhoneFrame>
+         <div className="relative z-10 w-full h-full flex items-center justify-center lg:pb-0 pt-16 lg:pt-0 pb-20">
+             
+             {/* DESKTOP VIEW: Phone Frame Mockup */}
+             <div className="hidden lg:block relative scale-100 transition-transform duration-500 origin-center">
+                 <PhoneFrame username={username} isDark={true}>
+                   {renderCurrentSlide(false)}
+                 </PhoneFrame>
 
-             {/* Navigation */}
-             <button 
-                onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
-                className="absolute top-1/2 -left-12 lg:-left-24 -translate-y-1/2 w-12 h-12 lg:w-16 lg:h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
-                disabled={activeSlideIndex === 0}
-              >
-                <ChevronLeft size={24} className="lg:w-8 lg:h-8" />
-              </button>
-              <button 
-                onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
-                className="absolute top-1/2 -right-12 lg:-right-24 -translate-y-1/2 w-12 h-12 lg:w-16 lg:h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
-                disabled={activeSlideIndex === slides.length - 1}
-              >
-                <ChevronRight size={24} className="lg:w-8 lg:h-8" />
-              </button>
-         </div>
+                 {/* Desktop Navigation */}
+                 <button 
+                    onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
+                    className="absolute top-1/2 -left-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                    disabled={activeSlideIndex === 0}
+                  >
+                    <ChevronLeft size={32} />
+                  </button>
+                  <button 
+                    onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
+                    className="absolute top-1/2 -right-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                    disabled={activeSlideIndex === slides.length - 1}
+                  >
+                    <ChevronRight size={32} />
+                  </button>
+             </div>
 
-         {/* Badge */}
-         <div className="absolute bottom-4 lg:bottom-8 px-6 py-2 bg-white/60 backdrop-blur-md rounded-full shadow-lg text-sm font-bold text-slate-600 border border-white/50">
-            Слайд {activeSlideIndex + 1} из {slides.length}
+             {/* MOBILE VIEW: Full Card Without Frame with Swipe */}
+             <div 
+               className="lg:hidden w-full h-full flex flex-col items-center justify-center p-4"
+               onTouchStart={onTouchStart}
+               onTouchMove={onTouchMove}
+               onTouchEnd={onTouchEnd}
+             >
+                 <div className="relative w-full max-w-[400px] aspect-[4/5] shadow-2xl rounded-3xl overflow-hidden bg-white ring-1 ring-black/5">
+                     {renderCurrentSlide(true)}
+                 </div>
+                 
+                 {/* Mobile Slide Indicator (Clickable) */}
+                 <div className="mt-6 flex gap-2">
+                    {slides.map((_, idx) => (
+                      <button 
+                        key={idx} 
+                        onClick={() => setActiveSlideIndex(idx)}
+                        className={`transition-all rounded-full ${idx === activeSlideIndex ? 'bg-slate-800 w-4 h-2' : 'bg-slate-300 w-2 h-2 hover:bg-slate-400'}`}
+                        aria-label={`Go to slide ${idx + 1}`}
+                      />
+                    ))}
+                 </div>
+             </div>
          </div>
+      </div>
+
+      {/* --- MOBILE BOTTOM NAVIGATION BAR --- */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-100 flex items-center justify-around z-30 px-2 pb-2">
+         <button 
+           onClick={() => setActiveMobileTab('generator')}
+           className={`flex flex-col items-center justify-center gap-1 w-20 h-full ${activeMobileTab === 'generator' ? 'text-purple-600' : 'text-slate-400'}`}
+         >
+           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${activeMobileTab === 'generator' ? 'bg-purple-100' : 'bg-transparent'}`}>
+              <Wand2 size={22} />
+           </div>
+           <span className="text-[10px] font-bold">Генератор</span>
+         </button>
+
+         <button 
+           onClick={() => setActiveMobileTab('design')}
+           className={`flex flex-col items-center justify-center gap-1 w-20 h-full ${activeMobileTab === 'design' ? 'text-pink-600' : 'text-slate-400'}`}
+         >
+           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${activeMobileTab === 'design' ? 'bg-pink-100' : 'bg-transparent'}`}>
+              <Palette size={22} />
+           </div>
+           <span className="text-[10px] font-bold">Дизайн</span>
+         </button>
+
+         <button 
+           onClick={handleExport}
+           className="flex flex-col items-center justify-center gap-1 w-20 h-full text-slate-400 active:text-slate-800"
+         >
+           <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-transparent active:bg-slate-100 transition-all">
+              <Download size={22} />
+           </div>
+           <span className="text-[10px] font-bold">Скачать</span>
+         </button>
       </div>
 
     </div>
