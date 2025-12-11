@@ -214,18 +214,27 @@ const App: React.FC = () => {
       const element = exportRef.current;
       const children = Array.from(element.children) as HTMLElement[];
 
-      // Temporarily show export container
+      // Ensure full opacity for capture
       element.style.opacity = '1';
       
       const promises = children.map(async (child, i) => {
-        const dataUrl = await toPng(child, { cacheBust: true, pixelRatio: 2 });
+        // Render at 360x450 (preview size) and scale x3 to get 1080x1350
+        // This ensures the layout and font sizes match the preview exactly.
+        const dataUrl = await toPng(child, { 
+          cacheBust: true, 
+          pixelRatio: 3,
+          width: 360,
+          height: 450,
+          style: {
+            transform: 'none', // Reset potential transforms
+          }
+        });
         const base64 = dataUrl.split(',')[1];
         zip.file(`slide-${i + 1}.png`, base64, { base64: true });
       });
 
       await Promise.all(promises);
       
-      // Hide again
       element.style.opacity = '0';
 
       const content = await zip.generateAsync({ type: 'blob' });
@@ -491,10 +500,15 @@ const App: React.FC = () => {
       />
 
       {/* --- HIDDEN EXPORT CONTAINER --- */}
-      <div style={{ position: 'absolute', top: -9999, left: -9999, opacity: 0, pointerEvents: 'none' }}>
+      {/* 
+          We render the slides at a "mobile" resolution (360x450) to match the visual proportions 
+          of Tailwind classes (like text-xl, p-8) used in the preview. 
+          Then we use high pixelRatio during export to generate 1080x1350 images.
+      */}
+      <div style={{ position: 'absolute', top: 0, left: 0, overflow: 'hidden', height: 0, width: 0, opacity: 0 }}>
         <div ref={exportRef}>
           {slides.map((slide) => (
-            <div key={slide.number} style={{ width: 1080, height: 1350 }}>
+            <div key={slide.number} style={{ width: '360px', height: '450px', position: 'relative' }}>
               <SlideCard
                 data={slide}
                 theme={config.theme} 
@@ -504,7 +518,7 @@ const App: React.FC = () => {
                 readOnly={true}
                 customStyle={slideStyles[slide.number]}
                 isRegenerating={false}
-                className="w-full h-full text-[2.5em]" // Simple scaling hack for export container
+                className="w-full h-full"
               />
             </div>
           ))}
