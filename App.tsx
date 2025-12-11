@@ -636,26 +636,15 @@ const App: React.FC = () => {
 
       {/* --- MAIN AREA (PREVIEW) --- */}
       <div className="relative flex-1 h-full w-full flex flex-col overflow-hidden bg-slate-50 lg:bg-transparent">
-         {/* Mobile Header */}
-         <div className="lg:hidden absolute top-0 left-0 right-0 h-16 bg-white/60 backdrop-blur-md z-30 flex items-center justify-between px-4 border-b border-white/20">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white shadow-md">
-                 <Sparkles size={16} fill="currentColor" />
-              </div>
-              <span className="font-bold text-slate-800">CarouselKit</span>
-            </div>
-            <div className="px-3 py-1 bg-white rounded-full shadow-sm border border-slate-100 text-xs font-bold text-slate-600">
-               {activeSlideIndex + 1} / {slides.length}
-            </div>
-         </div>
-
+         {/* Mobile Header Removed - PhoneFrame handles it */}
+         
          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 z-0"></div>
          
-         <div className="relative z-10 w-full h-full flex items-center justify-center lg:pb-0 pt-16 lg:pt-0 pb-20">
+         <div className="relative z-10 w-full h-full flex items-center justify-center lg:pb-0 lg:pt-0 pb-20">
              
              {/* DESKTOP VIEW: Phone Frame Mockup */}
-             <div className="hidden lg:block relative scale-100 transition-transform duration-500 origin-center">
-                 <PhoneFrame username={username} isDark={true}>
+             <div className="hidden lg:block relative scale-[0.85] 2xl:scale-100 transition-transform duration-500 origin-center">
+                 <PhoneFrame username={username} isDark={true} viewMode="desktop">
                    {renderCurrentSlide(false)}
                  </PhoneFrame>
 
@@ -676,19 +665,20 @@ const App: React.FC = () => {
                   </button>
              </div>
 
-             {/* MOBILE VIEW: Full Card Without Frame with Swipe */}
+             {/* MOBILE VIEW: Clean Card with Swipe */}
              <div 
-               className="lg:hidden w-full h-full flex flex-col items-center justify-center p-4"
+               className="lg:hidden w-full h-full flex flex-col items-center justify-center p-6"
                onTouchStart={onTouchStart}
                onTouchMove={onTouchMove}
                onTouchEnd={onTouchEnd}
              >
-                 <div className="relative w-full max-w-[400px] aspect-[4/5] shadow-2xl rounded-3xl overflow-hidden bg-white ring-1 ring-black/5">
-                     {renderCurrentSlide(true)}
+                 {/* Reverted to simple container instead of PhoneFrame to prevent cutoff and focus on content */}
+                 <div className="relative w-full max-w-[400px] aspect-[4/5] shadow-2xl rounded-3xl overflow-hidden ring-1 ring-black/5 bg-zinc-900">
+                    {renderCurrentSlide(true)}
                  </div>
                  
-                 {/* Mobile Slide Indicator (Clickable) */}
-                 <div className="mt-6 flex gap-2">
+                 {/* Mobile Slide Indicator (Clickable) - Positioned below post */}
+                 <div className="mt-6 flex gap-2 pb-8">
                     {slides.map((_, idx) => (
                       <button 
                         key={idx} 

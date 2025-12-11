@@ -6,22 +6,88 @@ interface PhoneFrameProps {
   username: string;
   avatarUrl?: string;
   isDark?: boolean;
+  viewMode?: 'desktop' | 'mobile';
 }
 
 export const PhoneFrame: React.FC<PhoneFrameProps> = ({ 
   children, 
   username, 
   avatarUrl = "https://api.dicebear.com/9.x/avataaars/svg?seed=Felix",
-  isDark = false
+  isDark = false,
+  viewMode = 'desktop'
 }) => {
-  // Always use dark frame for realistic look, internal UI changes based on isDark prop logic if needed, 
-  // but standard Instagram feed is usually white or dark mode. Let's stick to a neutral look that fits the requested design.
-  // The TZ asks for a black body frame.
-  
   const uiTheme = isDark ? 'text-white' : 'text-black';
   const bgTheme = isDark ? 'bg-black' : 'bg-white';
-  const borderColor = isDark ? 'border-zinc-800' : 'border-gray-100';
+  
+  // --- COMPONENTS ---
+  
+  const InstagramHeader = () => (
+     <div className={`px-3 py-3 flex items-center justify-between z-20 relative ${viewMode === 'mobile' ? 'bg-white/5 backdrop-blur-sm' : ''}`}>
+        <div className="flex items-center gap-2.5">
+           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[1.5px] shrink-0">
+             <div className={`w-full h-full rounded-full ${viewMode === 'desktop' ? bgTheme : 'bg-white'} border-[2px] border-transparent overflow-hidden`}>
+               <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
+             </div>
+           </div>
+           <div className="flex flex-col">
+              <span className={`text-xs font-semibold leading-tight flex items-center gap-1 ${uiTheme}`}>
+                {username}
+              </span>
+              <span className={`text-[10px] opacity-60 ${uiTheme}`}>Moscow, Russia</span>
+           </div>
+        </div>
+        <MoreHorizontal size={20} className={`opacity-60 ${uiTheme}`} />
+     </div>
+  );
 
+  const InstagramFooter = () => (
+     <div className="px-3 pt-3 pb-2 z-20 relative">
+        <div className="flex justify-between items-center mb-2">
+           <div className="flex items-center gap-4">
+              <Heart size={26} className={uiTheme} strokeWidth={1.5} />
+              <MessageCircle size={26} className={`${uiTheme} -rotate-90`} strokeWidth={1.5} />
+              <Send size={26} className={`${uiTheme} rotate-12 mb-1`} strokeWidth={1.5} />
+           </div>
+           <Bookmark size={26} className={uiTheme} strokeWidth={1.5} />
+        </div>
+        
+        <div className="flex items-center gap-1.5 mb-1.5">
+           <div className="flex -space-x-1.5">
+             <div className="w-4 h-4 rounded-full bg-gray-300 ring-2 ring-white"></div>
+             <div className="w-4 h-4 rounded-full bg-gray-400 ring-2 ring-white"></div>
+             <div className="w-4 h-4 rounded-full bg-gray-500 ring-2 ring-white"></div>
+           </div>
+           <div className={`text-xs ${uiTheme}`}>
+             Liked by <span className="font-semibold">elonmusk</span> and <span className="font-semibold">others</span>
+           </div>
+        </div>
+
+        <div className={`text-xs leading-snug ${uiTheme}`}>
+           <span className="font-semibold mr-1.5">{username}</span>
+           <span>🚀 Create viral carousels in seconds with AI. Swipe to see how! 👇</span>
+           <span className="opacity-50 ml-1">more</span>
+        </div>
+        
+        <div className="text-[10px] opacity-40 mt-2 uppercase font-medium">
+           2 hours ago
+        </div>
+     </div>
+  );
+
+  // --- MOBILE VIEW (FEED STYLE) ---
+  if (viewMode === 'mobile') {
+      return (
+         <div className={`w-full flex flex-col ${isDark ? 'bg-zinc-900' : 'bg-white'} shadow-sm overflow-hidden`}>
+            <InstagramHeader />
+            <div className={`w-full aspect-[4/5] relative ${isDark ? 'bg-zinc-800' : 'bg-gray-100'} shadow-inner`}>
+               {children}
+            </div>
+            <InstagramFooter />
+         </div>
+      );
+  }
+
+  // --- DESKTOP VIEW (DEVICE MOCKUP) ---
   return (
     <div className="relative mx-auto pointer-events-none select-none">
        {/* External Frame Shadow & Body */}
@@ -45,8 +111,8 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({
         {/* Screen Content */}
         <div className={`flex-1 ${bgTheme} w-full pt-12 pb-6 flex flex-col overflow-hidden relative rounded-[2.5rem] pointer-events-auto`}>
           
-          {/* Instagram Header */}
-          <div className={`px-4 py-2 flex justify-between items-center z-20`}>
+          {/* Post Header (Custom Header for Device View which includes 'Posts' nav) */}
+           <div className={`px-4 py-2 flex justify-between items-center z-20`}>
             <div className="flex items-center gap-1 -ml-2">
                <ChevronLeft size={28} className={uiTheme} strokeWidth={1.5} />
                <span className={`text-sm font-semibold ${uiTheme}`}>Posts</span>
@@ -61,61 +127,14 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({
           {/* Scrollable Feed Area */}
           <div className="flex-1 overflow-y-auto no-scrollbar relative">
              
-             {/* Post Header */}
-             <div className="px-3 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                   <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[1.5px]">
-                     <div className={`w-full h-full rounded-full ${bgTheme} border-[2px] border-transparent overflow-hidden`}>
-                       <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
-                     </div>
-                   </div>
-                   <div className="flex flex-col">
-                      <span className={`text-xs font-semibold leading-tight flex items-center gap-1 ${uiTheme}`}>
-                        {username}
-                      </span>
-                      <span className={`text-[10px] opacity-60 ${uiTheme}`}>Moscow, Russia</span>
-                   </div>
-                </div>
-                <MoreHorizontal size={20} className={`opacity-60 ${uiTheme}`} />
-             </div>
+             <InstagramHeader />
 
              {/* CAROUSEL CONTENT */}
              <div className="w-full aspect-[4/5] bg-gray-100 relative overflow-hidden shadow-sm">
                 {children}
              </div>
 
-             {/* Post Actions */}
-             <div className="px-3 pt-3 pb-2">
-                <div className="flex justify-between items-center mb-2">
-                   <div className="flex items-center gap-4">
-                      <Heart size={26} className={uiTheme} strokeWidth={1.5} />
-                      <MessageCircle size={26} className={`${uiTheme} -rotate-90`} strokeWidth={1.5} />
-                      <Send size={26} className={`${uiTheme} rotate-12 mb-1`} strokeWidth={1.5} />
-                   </div>
-                   <Bookmark size={26} className={uiTheme} strokeWidth={1.5} />
-                </div>
-                
-                <div className="flex items-center gap-1.5 mb-1.5">
-                   <div className="flex -space-x-1.5">
-                     <div className="w-4 h-4 rounded-full bg-gray-300 ring-2 ring-white"></div>
-                     <div className="w-4 h-4 rounded-full bg-gray-400 ring-2 ring-white"></div>
-                     <div className="w-4 h-4 rounded-full bg-gray-500 ring-2 ring-white"></div>
-                   </div>
-                   <div className={`text-xs ${uiTheme}`}>
-                     Liked by <span className="font-semibold">elonmusk</span> and <span className="font-semibold">others</span>
-                   </div>
-                </div>
-
-                <div className={`text-xs leading-snug ${uiTheme}`}>
-                   <span className="font-semibold mr-1.5">{username}</span>
-                   <span>🚀 Create viral carousels in seconds with AI. Swipe to see how! 👇</span>
-                   <span className="opacity-50 ml-1">more</span>
-                </div>
-                
-                <div className="text-[10px] opacity-40 mt-2 uppercase font-medium">
-                   2 hours ago
-                </div>
-             </div>
+             <InstagramFooter />
 
           </div>
 
