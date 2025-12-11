@@ -2,9 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateCarouselContent, regenerateSlideContent, generateBackgroundImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
-import { ThemePreview } from './components/ThemePreview';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE } from './types';
-import { ChevronLeft, ChevronRight, Upload, Sparkles, Wand2, Type, Palette, Image as ImageIcon, Download, Layers, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -46,7 +45,7 @@ const App: React.FC = () => {
   const [config, setConfig] = useState<CarouselConfig>({
     topic: '',
     slideCount: 5,
-    theme: Theme.DARK_MODERN,
+    theme: Theme.DARK_MODERN, // Enforced Default
     tone: Tone.EXPERT
   });
 
@@ -349,6 +348,21 @@ const App: React.FC = () => {
                Дизайн
              </div>
 
+             {/* Username Input */}
+             <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                   <AtSign size={14} className="text-slate-400" />
+                   <label className="text-xs font-semibold text-slate-500">Никнейм</label>
+                </div>
+                <input 
+                  type="text" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+                  placeholder="@username"
+                />
+             </div>
+
              {/* Font Size */}
              <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -483,7 +497,7 @@ const App: React.FC = () => {
             <div key={slide.number} style={{ width: 1080, height: 1350 }}>
               <SlideCard
                 data={slide}
-                theme={Theme.DARK_MODERN} // Always use Dark Modern as base
+                theme={config.theme} 
                 totalSlides={slides.length}
                 username={username}
                 onSlideChange={() => {}}
@@ -506,7 +520,7 @@ const App: React.FC = () => {
              <PhoneFrame username={username} isDark={true}>
                <SlideCard 
                   data={currentSlideData}
-                  theme={Theme.DARK_MODERN}
+                  theme={config.theme}
                   totalSlides={currentTotal}
                   username={username}
                   onSlideChange={(f, v) => handleSlideUpdate(f, v)}

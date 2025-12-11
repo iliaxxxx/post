@@ -303,12 +303,18 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
             />
           </div>
         </div>
-        <div className="mt-auto pt-4 pb-4 flex items-end justify-between text-zinc-400">
-           <div className="pb-0.5"><Heart className="w-5 h-5 text-red-600 fill-red-600" strokeWidth={0} /></div>
-           <div className="text-[9px] text-zinc-600 text-center leading-tight max-w-[120px] select-none font-medium mb-1">делись и сохрани, чтобы не потерять</div>
-           <div className="flex items-center gap-3 pb-0.5">
-             <Send className="w-4 h-4 -rotate-12 text-zinc-400" strokeWidth={1.5} style={{ marginTop: '-2px' }} />
-             <Bookmark className="w-5 h-5 text-[#FFC400] fill-[#FFC400]" strokeWidth={0} />
+        
+        {/* FOOTER - ALIGNMENT FIX */}
+        <div className="mt-auto pt-4 pb-2 flex items-center justify-between text-zinc-400">
+           <Heart className="w-6 h-6 text-red-600 fill-red-600 shrink-0" strokeWidth={0} />
+           
+           <div className="text-[9px] text-zinc-600 text-center leading-tight max-w-[120px] select-none font-medium px-2">
+             делись и сохрани, чтобы не потерять
+           </div>
+           
+           <div className="flex items-center gap-3 shrink-0">
+             <Send className="w-5 h-5 -rotate-12 text-zinc-400 hover:text-white transition-colors" strokeWidth={1.5} />
+             <Bookmark className="w-6 h-6 text-[#FFC400] fill-[#FFC400]" strokeWidth={0} />
            </div>
         </div>
       </div>
