@@ -249,10 +249,10 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className="flex h-screen w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-auto lg:h-screen w-full bg-[#f8fafc] text-slate-800 font-sans overflow-x-hidden lg:overflow-hidden">
       
       {/* --- LEFT SIDEBAR (Controls) --- */}
-      <div className="w-[420px] h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex flex-col shadow-2xl z-20 overflow-hidden relative">
+      <div className="order-2 lg:order-1 w-full lg:w-[420px] h-auto lg:h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex flex-col shadow-2xl z-20 relative lg:flex-none">
         <div className="p-6 border-b border-gray-100 bg-white/50">
            <div className="flex items-center gap-2 mb-1">
              <div className="w-8 h-8 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white shadow-lg">
@@ -265,7 +265,7 @@ const App: React.FC = () => {
            <p className="text-xs text-slate-400 font-medium ml-10">AI-Powered Instagram Generator</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
+        <div className="flex-1 lg:overflow-y-auto no-scrollbar p-6 space-y-8">
           
           {/* 1. GENERATOR SECTION */}
           <section className="space-y-5">
@@ -347,6 +347,29 @@ const App: React.FC = () => {
              <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
                <Palette size={16} className="text-pink-500" />
                Дизайн
+             </div>
+
+             {/* Font Size */}
+             <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                   <Type size={14} className="text-slate-400" />
+                   <label className="text-xs font-semibold text-slate-500">Размер текста</label>
+                </div>
+                <div className="grid grid-cols-4 gap-2 bg-slate-100 p-1 rounded-xl">
+                    {(['small', 'medium', 'large', 'extra'] as const).map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => updateGlobalStyle({ fontSize: size })}
+                        className={`py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all uppercase ${
+                          (currentStyle.fontSize || 'medium') === size 
+                            ? 'bg-white text-purple-600 shadow-sm' 
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {size === 'small' ? 'S' : size === 'medium' ? 'M' : size === 'large' ? 'L' : 'XL'}
+                      </button>
+                    ))}
+                </div>
              </div>
 
              {/* Fonts */}
@@ -475,11 +498,11 @@ const App: React.FC = () => {
       </div>
 
       {/* --- RIGHT AREA (PREVIEW) --- */}
-      <div className="flex-1 h-full relative flex flex-col items-center justify-center overflow-hidden">
+      <div className="order-1 lg:order-2 w-full lg:flex-1 h-[600px] lg:h-full relative flex flex-col items-center justify-center overflow-hidden bg-slate-50 lg:bg-transparent shrink-0">
          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 z-0"></div>
          <div className="absolute top-[-20%] left-[-20%] w-[800px] h-[800px] bg-purple-200/40 rounded-full blur-[120px] pointer-events-none"></div>
          
-         <div className="relative z-10 scale-[0.9] lg:scale-100 transition-transform duration-500">
+         <div className="relative z-10 scale-[0.65] sm:scale-[0.85] lg:scale-100 transition-transform duration-500 origin-center">
              <PhoneFrame username={username} isDark={true}>
                <SlideCard 
                   data={currentSlideData}
@@ -498,22 +521,22 @@ const App: React.FC = () => {
              {/* Navigation */}
              <button 
                 onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
-                className="absolute top-1/2 -left-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                className="absolute top-1/2 -left-12 lg:-left-24 -translate-y-1/2 w-12 h-12 lg:w-16 lg:h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
                 disabled={activeSlideIndex === 0}
               >
-                <ChevronLeft size={32} />
+                <ChevronLeft size={24} className="lg:w-8 lg:h-8" />
               </button>
               <button 
                 onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
-                className="absolute top-1/2 -right-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                className="absolute top-1/2 -right-12 lg:-right-24 -translate-y-1/2 w-12 h-12 lg:w-16 lg:h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
                 disabled={activeSlideIndex === slides.length - 1}
               >
-                <ChevronRight size={32} />
+                <ChevronRight size={24} className="lg:w-8 lg:h-8" />
               </button>
          </div>
 
          {/* Badge */}
-         <div className="absolute bottom-8 px-6 py-2 bg-white/60 backdrop-blur-md rounded-full shadow-lg text-sm font-bold text-slate-600 border border-white/50">
+         <div className="absolute bottom-4 lg:bottom-8 px-6 py-2 bg-white/60 backdrop-blur-md rounded-full shadow-lg text-sm font-bold text-slate-600 border border-white/50">
             Слайд {activeSlideIndex + 1} из {slides.length}
          </div>
       </div>
@@ -526,11 +549,6 @@ export default App;
 
 // Helper function for inline edits
 function handleSlideUpdate(field: any, value: any) {
-  // Note: This logic needs to be inside the component to work properly.
-  // In a real refactor, I would move handleSlideChange into the component scope 
-  // or pass setSlides down. For now, since I can't easily change the architecture 
-  // without a full file rewrite, I'll rely on the existing setSlides in App scope 
-  // if I were writing this from scratch.
-  // Wait, I am writing App.tsx from scratch above.
-  // I need to implement handleSlideUpdate inside App component.
+  // Placeholder logic handled within components via props, 
+  // but kept for structure consistency if expanded.
 }
