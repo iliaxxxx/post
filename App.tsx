@@ -31,13 +31,30 @@ const DEMO_SLIDES: SlideData[] = [
 ];
 
 const INITIAL_FONTS = [
-  { name: 'Inter', label: 'Inter (System)' },
-  { name: 'Montserrat', label: 'Montserrat (Modern)' },
-  { name: 'Playfair Display', label: 'Playfair (Elegant)' },
-  { name: 'Bebas Neue', label: 'Bebas (Bold)' },
-  { name: 'Merriweather', label: 'Merriweather (Serif)' },
-  { name: 'Courier Prime', label: 'Courier (Retro)' },
+  // Modern / Geometric
+  { name: 'Inter', label: 'Inter (База)' },
+  { name: 'Golos Text', label: 'Golos (Тренд 2025)' },
+  { name: 'Manrope', label: 'Manrope (Стиль)' },
+  { name: 'Montserrat', label: 'Montserrat (Гео)' },
+  { name: 'Unbounded', label: 'Unbounded (Смелый)' },
+  
+  // Display / Bold / Impact
+  { name: 'Bebas Neue', label: 'Bebas (Caps)' },
+  { name: 'Oswald', label: 'Oswald (Узкий)' },
   { name: 'Anton', label: 'Anton (Heavy)' },
+  { name: 'Russo One', label: 'Russo (Мощь)' },
+  { name: 'Tektur', label: 'Tektur (Cyber)' },
+
+  // Serif / Elegant
+  { name: 'Cormorant Garamond', label: 'Cormorant (Люкс)' },
+  { name: 'Playfair Display', label: 'Playfair (Элегант)' },
+  { name: 'Merriweather', label: 'Merriweather (Чтение)' },
+  { name: 'Alice', label: 'Alice (Сказка)' },
+
+  // Handwriting / Retro / Soft
+  { name: 'Caveat', label: 'Caveat (Рука)' },
+  { name: 'Comfortaa', label: 'Comfortaa (Мягкий)' },
+  { name: 'Courier Prime', label: 'Courier (Ретро)' },
 ];
 
 const COLOR_PRESETS = [
@@ -46,8 +63,8 @@ const COLOR_PRESETS = [
 ];
 
 const GRADIENT_PRESETS = [
-  { name: 'Soft Creme', value: 'linear-gradient(135deg, #F5EDE2, #FFFDF9)' }, // Updated: Warm Creme
-  { name: 'Deep Forest', value: 'linear-gradient(135deg, #243029, #16231D)' }, // Updated: Deep Olive Black
+  { name: 'Soft Creme', value: 'linear-gradient(135deg, #F5EDE2, #FFFDF9)' }, // Warm Creme
+  { name: 'Deep Obsidian', value: 'linear-gradient(135deg, #18181b, #020202)' }, // Neutral Rich Black
   { name: 'Cherry Crush', value: 'linear-gradient(135deg, #E84F5E, #FCDFC5)' },
   { name: 'Vanilla Teal', value: 'linear-gradient(135deg, #F3E5C3, #174E4F)' },
   { name: 'Sage Olive', value: 'linear-gradient(135deg, #ABC8A2, #1A2417)' },
