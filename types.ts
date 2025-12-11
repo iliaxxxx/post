@@ -37,8 +37,11 @@ export interface SlideStyle {
   fontSize: TextSize;
   textColor: string; // Body text color
   titleColor: string; // Header text color
+  titleGlow?: boolean; // Toggle for trendy glow effect
   textAlign: TextAlign;
-  fontFamily?: string; // Font override
+  fontFamily?: string; // Fallback / Global override
+  titleFontFamily?: string; // Specific font for headers
+  bodyFontFamily?: string; // Specific font for content
   backgroundType: 'solid' | 'gradient' | 'image';
   backgroundValue: string; // Color code, gradient string, or image URL
   overlayOpacity: number; // 0-1 (Dimming)
@@ -48,10 +51,21 @@ export const DEFAULT_STYLE: SlideStyle = {
   fontSize: 'medium',
   textColor: '', // Empty means use Theme default (CSS classes)
   titleColor: '', // Empty means use Theme default (CSS classes)
+  titleGlow: false,
   textAlign: 'center',
   backgroundType: 'solid',
   backgroundValue: '', // Empty means use Theme default
   overlayOpacity: 0.2, // Default slight overlay
 };
+
+export interface SavedCarousel {
+  id: string;
+  timestamp: number;
+  topic: string; // Used as title in library
+  slides: SlideData[];
+  styles: Record<number, SlideStyle>;
+  username: string;
+  config: CarouselConfig;
+}
 
 export type EditorTab = 'text' | 'image' | 'background';

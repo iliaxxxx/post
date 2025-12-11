@@ -86,6 +86,18 @@ const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any)
     };
 };
 
+// --- HELPER FOR GLOW ---
+const getGlowStyle = (enabled?: boolean, color?: string, isDark?: boolean) => {
+  if (!enabled) return {};
+  
+  // Try to parse color or default to white/theme color
+  const glowColor = color && color !== '' ? color : (isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.5)');
+  
+  return {
+    textShadow: `0 0 10px ${glowColor}, 0 0 20px ${glowColor}, 0 0 40px ${glowColor}`
+  };
+};
+
 // --- EDITABLE COMPONENT ---
 const EditableText = ({ 
   value, 
@@ -96,7 +108,9 @@ const EditableText = ({
   readOnly = false,
   theme,
   autoHighlight = false,
-  styleOverride // New prop to pass inline styles
+  styleOverride, // New prop to pass inline styles
+  glowEnabled = false,
+  glowColor = ''
 }: { 
   value: string; 
   onChange: (val: string) => void; 
@@ -107,6 +121,8 @@ const EditableText = ({
   theme: Theme;
   autoHighlight?: boolean;
   styleOverride?: React.CSSProperties;
+  glowEnabled?: boolean;
+  glowColor?: string;
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -129,12 +145,19 @@ const EditableText = ({
 
   const htmlContent = applyHighlights(value, theme);
 
+  // Merge glow style if enabled
+  // We assume light glow for dark themes usually, handled by parent, or passed color
+  const finalStyle = {
+    ...styleOverride,
+    ...(glowEnabled ? getGlowStyle(true, glowColor, theme !== Theme.MINIMAL_LIGHT && theme !== Theme.RETRO_PAPER) : {})
+  };
+
   if (isEditing && !readOnly) {
     return (
       <textarea
         ref={textareaRef}
         className={`${className} w-full bg-transparent outline-none border-b border-indigo-500 resize-none overflow-hidden`}
-        style={styleOverride}
+        style={finalStyle}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -149,7 +172,7 @@ const EditableText = ({
   return React.createElement(tagName, {
     ref: containerRef,
     className: `${className} ${!readOnly ? 'cursor-text hover:opacity-80' : ''} transition-opacity whitespace-pre-wrap break-words`,
-    style: styleOverride,
+    style: finalStyle,
     onClick: () => {
       if (!readOnly) setIsEditing(true);
     },
@@ -240,7 +263,9 @@ const getOverrides = (customStyle?: SlideStyle) => {
     color: customStyle.textColor ? customStyle.textColor : undefined,
     titleColor: customStyle.titleColor ? customStyle.titleColor : undefined,
     overlayOpacity: customStyle.overlayOpacity,
-    fontFamily: customStyle.fontFamily
+    titleFontFamily: customStyle.titleFontFamily || customStyle.fontFamily,
+    bodyFontFamily: customStyle.bodyFontFamily || customStyle.fontFamily,
+    titleGlow: customStyle.titleGlow
   };
 };
 
@@ -264,7 +289,7 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
       className="w-full h-full text-white flex flex-col p-6 sm:p-8 relative overflow-hidden bg-cover bg-center bg-zinc-900" 
       style={{ 
           ...bgConfig,
-          fontFamily: overrides.fontFamily 
+          fontFamily: overrides.bodyFontFamily 
       }}
     >
       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
@@ -286,13 +311,15 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
             tagName="h2" 
             className={`font-['Inter'] font-bold leading-[1.2] tracking-tight ${titleSize}`} 
             value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} autoHighlight={true} 
-            styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.fontFamily }}
+            styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
+            glowEnabled={overrides.titleGlow}
+            glowColor={overrides.titleColor}
           />
-          <div className={`font-['Inter'] leading-relaxed text-zinc-300 ${contentSize}`} style={{ fontFamily: overrides.fontFamily }}>
+          <div className={`font-['Inter'] leading-relaxed text-zinc-300 ${contentSize}`} style={{ fontFamily: overrides.bodyFontFamily }}>
             <EditableText 
               tagName="div" 
               value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} autoHighlight={true}
-              styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }}
+              styleOverride={{ color: overrides.color, fontFamily: overrides.bodyFontFamily }}
             />
           </div>
         </div>
@@ -328,7 +355,7 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
   return (
     <div 
       className="w-full h-full flex flex-col relative overflow-hidden bg-cover bg-center"
-      style={{ ...bgConfig, fontFamily: overrides.fontFamily }}
+      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
     >
        <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
@@ -343,8 +370,15 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
            <div className="font-['Courier_Prime'] font-bold text-[10px] sm:text-xs uppercase text-zinc-600">{username.replace('@', '')}</div>
         </div>
         <div className={`flex-1 flex flex-col justify-center ${bgConfig.textAlign === 'left' ? 'items-start text-left' : bgConfig.textAlign === 'right' ? 'items-end text-right' : 'items-center text-center'}`}>
-          <EditableText tagName="h2" className={`font-['Anton'] uppercase leading-[0.9] text-black tracking-tight mb-4 sm:mb-8 mix-blend-multiply break-words w-full ${titleSize}`} value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.fontFamily }} />
-          <EditableText tagName="p" className="font-['Courier_Prime'] text-xs sm:text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
+          <EditableText 
+            tagName="h2" 
+            className={`font-['Anton'] uppercase leading-[0.9] text-black tracking-tight mb-4 sm:mb-8 mix-blend-multiply break-words w-full ${titleSize}`} 
+            value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
+            styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }} 
+            glowEnabled={overrides.titleGlow}
+            glowColor={overrides.titleColor}
+          />
+          <EditableText tagName="p" className="font-['Courier_Prime'] text-xs sm:text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.bodyFontFamily }} />
         </div>
         <div className="mt-auto pt-6 flex justify-between items-center">
            {isFirst && <div className="text-[8px] sm:text-[10px] font-mono">SWIPE -></div>}
@@ -370,7 +404,7 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
   return (
     <div 
       className="w-full h-full text-white flex flex-col p-6 sm:p-8 relative overflow-hidden bg-cover bg-center"
-      style={{ ...bgConfig, fontFamily: overrides.fontFamily }}
+      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
     >
       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
@@ -394,9 +428,11 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
           tagName="h2" 
           className={`font-['Outfit'] font-black leading-none mb-6 text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400 ${titleSize}`} 
           value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-          styleOverride={overrides.titleColor ? { color: overrides.titleColor, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.fontFamily } : overrides.color ? { color: overrides.color, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.fontFamily } : { fontFamily: overrides.fontFamily }}
+          styleOverride={overrides.titleColor ? { color: overrides.titleColor, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.titleFontFamily } : overrides.color ? { color: overrides.color, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.titleFontFamily } : { fontFamily: overrides.titleFontFamily }}
+          glowEnabled={overrides.titleGlow}
+          glowColor={overrides.titleColor}
         />
-        <EditableText tagName="p" className="font-['Outfit'] font-light text-base sm:text-lg leading-snug text-zinc-300" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
+        <EditableText tagName="p" className="font-['Outfit'] font-light text-base sm:text-lg leading-snug text-zinc-300" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.bodyFontFamily }} />
       </div>
     </div>
   );
@@ -412,7 +448,7 @@ const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides,
   return (
     <div 
       className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 transition-all duration-300 select-none relative overflow-hidden bg-cover bg-center ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
-      style={{ ...bgConfig, fontFamily: overrides.fontFamily }}
+      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
     >
       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
 
@@ -425,13 +461,15 @@ const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides,
           tagName="h2" 
           className={`font-bold leading-tight tracking-tight font-['Inter'] ${isDark ? 'text-white' : 'text-zinc-900'} ${titleSize}`} 
           value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-          styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.fontFamily }}
+          styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
+          glowEnabled={overrides.titleGlow}
+          glowColor={overrides.titleColor}
         />
         {data.highlight && !isLast && (
-          <div className="mt-2"><span className={`inline-block px-3 py-1 mt-2 sm:mt-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}><EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} styleOverride={{ fontFamily: overrides.fontFamily }} /></span></div>
+          <div className="mt-2"><span className={`inline-block px-3 py-1 mt-2 sm:mt-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}><EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} styleOverride={{ fontFamily: overrides.bodyFontFamily }} /></span></div>
         )}
         <div className={`font-medium leading-relaxed mt-4 font-['Inter'] text-sm sm:text-lg ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-           <EditableText tagName="p" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.fontFamily }} />
+           <EditableText tagName="p" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.bodyFontFamily }} />
         </div>
       </div>
       <div className="relative z-10 flex justify-between items-end mt-4 pt-4 border-t border-dashed border-opacity-20" style={{ borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }}>

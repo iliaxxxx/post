@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateCarouselContent, regenerateSlideContent, generateBackgroundImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
-import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X } from 'lucide-react';
+import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -30,7 +30,7 @@ const DEMO_SLIDES: SlideData[] = [
   }
 ];
 
-const FONTS = [
+const INITIAL_FONTS = [
   { name: 'Inter', label: 'Inter (System)' },
   { name: 'Montserrat', label: 'Montserrat (Modern)' },
   { name: 'Playfair Display', label: 'Playfair (Elegant)' },
@@ -45,7 +45,8 @@ const COLOR_PRESETS = [
   '#3B82F6', '#10B981', '#F59E0B', '#64748B'
 ];
 
-type MobileTab = 'generator' | 'design' | null;
+type MobileTab = 'generator' | 'design' | 'library' | null;
+type SidebarTab = 'editor' | 'library';
 
 const App: React.FC = () => {
   // --- STATE ---
@@ -61,6 +62,14 @@ const App: React.FC = () => {
   const [slides, setSlides] = useState<SlideData[]>(DEMO_SLIDES);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  // Font State
+  const [availableFonts, setAvailableFonts] = useState(INITIAL_FONTS);
+  const [customFontInput, setCustomFontInput] = useState('');
+
+  // Library State
+  const [savedCarousels, setSavedCarousels] = useState<SavedCarousel[]>([]);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<SidebarTab>('editor');
   
   // Mobile UI State
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>(null);
@@ -79,6 +88,18 @@ const App: React.FC = () => {
   const exportRef = useRef<HTMLDivElement>(null);
 
   // --- EFFECTS ---
+  useEffect(() => {
+    // Load from local storage
+    const saved = localStorage.getItem('carousel_library');
+    if (saved) {
+      try {
+        setSavedCarousels(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse library", e);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (slides.length > 0) {
       const newStyles = { ...slideStyles };
@@ -115,6 +136,7 @@ const App: React.FC = () => {
     if (!config.topic) return alert("Введите тему");
     setIsGenerating(true);
     setActiveMobileTab(null); // Close drawer on mobile
+    setActiveSidebarTab('editor'); // Switch to editor
     try {
       const tone = mapSliderToTone(toneValue);
       const generatedSlides = await generateCarouselContent(config.topic, config.slideCount, tone);
@@ -250,6 +272,68 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("Failed to load images", err);
     }
+  };
+
+  // --- CUSTOM FONT HANDLER ---
+  const handleAddCustomFont = () => {
+    if (!customFontInput.trim()) return;
+
+    const fontName = customFontInput.trim();
+    const formattedName = fontName.replace(/\s+/g, '+');
+    const url = `https://fonts.googleapis.com/css2?family=${formattedName}:wght@300;400;700;900&display=swap`;
+
+    // Create and append link element
+    const link = document.createElement('link');
+    link.href = url;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+
+    // Add to state
+    const newFont = { name: fontName, label: `${fontName} (Custom)` };
+    setAvailableFonts(prev => [...prev, newFont]);
+    
+    // Apply immediately to both for visibility
+    updateGlobalStyle({ titleFontFamily: fontName, bodyFontFamily: fontName });
+    
+    setCustomFontInput('');
+    alert(`Шрифт ${fontName} добавлен!`);
+  };
+
+  // --- LIBRARY FUNCTIONS ---
+  const handleSaveToLibrary = () => {
+    const newCarousel: SavedCarousel = {
+      id: Date.now().toString(),
+      timestamp: Date.now(),
+      topic: config.topic || "Untitled Carousel",
+      slides: slides,
+      styles: slideStyles,
+      config: config,
+      username: username
+    };
+    
+    const updated = [newCarousel, ...savedCarousels];
+    setSavedCarousels(updated);
+    localStorage.setItem('carousel_library', JSON.stringify(updated));
+    alert("Карусель сохранена в библиотеку!");
+  };
+
+  const handleDeleteFromLibrary = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm("Удалить эту карусель?")) return;
+    
+    const updated = savedCarousels.filter(c => c.id !== id);
+    setSavedCarousels(updated);
+    localStorage.setItem('carousel_library', JSON.stringify(updated));
+  };
+
+  const handleLoadFromLibrary = (item: SavedCarousel) => {
+    setSlides(item.slides);
+    setSlideStyles(item.styles);
+    setConfig(item.config);
+    setUsername(item.username);
+    setActiveSlideIndex(0);
+    setActiveSidebarTab('editor');
+    setActiveMobileTab(null);
   };
 
   const handleExport = async () => {
@@ -392,6 +476,14 @@ const App: React.FC = () => {
           </>
         )}
       </button>
+
+      <button
+        onClick={handleSaveToLibrary}
+        className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2 text-sm"
+      >
+        <Save size={16} />
+        Сохранить в коллекцию
+      </button>
     </section>
   );
 
@@ -459,6 +551,20 @@ const App: React.FC = () => {
          )}
       </div>
 
+      {/* NEW: Title Glow Toggle */}
+      <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+         <div className="flex items-center gap-2">
+            <Lightbulb size={16} className="text-indigo-500" />
+            <label className="text-xs font-bold text-slate-700">Неоновое свечение</label>
+         </div>
+         <button 
+           onClick={() => updateGlobalStyle({ titleGlow: !currentStyle.titleGlow })}
+           className={`w-10 h-5 rounded-full relative transition-colors duration-200 ${currentStyle.titleGlow ? 'bg-indigo-500' : 'bg-slate-300'}`}
+         >
+           <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${currentStyle.titleGlow ? 'translate-x-5' : 'translate-x-0'}`} />
+         </button>
+      </div>
+
       <div className="space-y-2">
          <div className="flex items-center gap-2">
             <Type size={14} className="text-slate-400" />
@@ -481,21 +587,54 @@ const App: React.FC = () => {
          </div>
       </div>
 
-      <div className="space-y-2">
-         <div className="flex items-center gap-2">
-            <Type size={14} className="text-slate-400" />
-            <label className="text-xs font-semibold text-slate-500">Шрифт</label>
+      <div className="space-y-4">
+         {/* Font Selection Group */}
+         <div className="flex flex-col gap-3">
+             <div className="space-y-1">
+                 <label className="text-xs font-semibold text-slate-500 ml-1">Шрифт заголовка</label>
+                 <select 
+                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+                   value={currentStyle.titleFontFamily || currentStyle.fontFamily || ''}
+                   onChange={(e) => updateGlobalStyle({ titleFontFamily: e.target.value })}
+                 >
+                   <option value="">По умолчанию</option>
+                   {availableFonts.map(f => (
+                     <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
+                   ))}
+                 </select>
+             </div>
+
+             <div className="space-y-1">
+                 <label className="text-xs font-semibold text-slate-500 ml-1">Шрифт текста</label>
+                 <select 
+                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+                   value={currentStyle.bodyFontFamily || currentStyle.fontFamily || ''}
+                   onChange={(e) => updateGlobalStyle({ bodyFontFamily: e.target.value })}
+                 >
+                   <option value="">По умолчанию</option>
+                   {availableFonts.map(f => (
+                     <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
+                   ))}
+                 </select>
+             </div>
+
+             <div className="flex gap-2 mt-1">
+               <input 
+                 type="text" 
+                 value={customFontInput}
+                 onChange={(e) => setCustomFontInput(e.target.value)}
+                 placeholder="Google Font (e.g. Lobster)"
+                 className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-purple-500 outline-none"
+               />
+               <button 
+                 onClick={handleAddCustomFont}
+                 className="bg-purple-100 text-purple-600 p-2 rounded-xl hover:bg-purple-200 transition-colors"
+                 title="Добавить шрифт"
+               >
+                 <Plus size={16} />
+               </button>
+             </div>
          </div>
-         <select 
-           className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
-           value={currentStyle.fontFamily || ''}
-           onChange={(e) => updateGlobalStyle({ fontFamily: e.target.value })}
-         >
-           <option value="">По умолчанию</option>
-           {FONTS.map(f => (
-             <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
-           ))}
-         </select>
       </div>
 
       <div className="space-y-4">
@@ -559,6 +698,46 @@ const App: React.FC = () => {
     </section>
   );
 
+  const renderLibrary = () => (
+    <section className="space-y-4">
+       <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">
+        <Library size={16} className="text-blue-500" />
+        Коллекция ({savedCarousels.length})
+      </div>
+      
+      {savedCarousels.length === 0 ? (
+        <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+           <Library size={32} className="mx-auto text-slate-300 mb-2" />
+           <p className="text-sm text-slate-400 font-medium">Пока ничего не сохранено</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {savedCarousels.map((item) => (
+             <div key={item.id} onClick={() => handleLoadFromLibrary(item)} className="group bg-white border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md hover:border-blue-200 cursor-pointer transition-all">
+                <div className="flex justify-between items-start mb-1">
+                   <h3 className="font-bold text-slate-700 text-sm line-clamp-2">{item.topic || 'Без названия'}</h3>
+                   <button 
+                     onClick={(e) => handleDeleteFromLibrary(item.id, e)}
+                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                   >
+                     <Trash2 size={14} />
+                   </button>
+                </div>
+                <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                   <span className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
+                     <Layers size={10} /> {item.slides.length}
+                   </span>
+                   <span className="flex items-center gap-1">
+                     <Clock size={10} /> {new Date(item.timestamp).toLocaleDateString()}
+                   </span>
+                </div>
+             </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <div className="flex flex-col lg:flex-row h-[100dvh] w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
       
@@ -576,19 +755,43 @@ const App: React.FC = () => {
            <p className="text-xs text-slate-400 font-medium ml-10">AI-Powered Instagram Generator</p>
         </div>
 
+        {/* Sidebar Tabs */}
+        <div className="px-6 pt-4">
+           <div className="flex p-1 bg-slate-100 rounded-xl">
+              <button 
+                onClick={() => setActiveSidebarTab('editor')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeSidebarTab === 'editor' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Редактор
+              </button>
+              <button 
+                onClick={() => setActiveSidebarTab('library')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeSidebarTab === 'library' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                Коллекция
+              </button>
+           </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
-          {renderGeneratorControls()}
-          <div className="h-px bg-slate-100 w-full"></div>
-          {renderDesignControls()}
-          <div className="pt-4 pb-10">
-             <button 
-               onClick={handleExport}
-               className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold shadow-xl hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-             >
-               <Download size={18} />
-               Экспорт в PNG
-             </button>
-          </div>
+          {activeSidebarTab === 'editor' ? (
+            <>
+              {renderGeneratorControls()}
+              <div className="h-px bg-slate-100 w-full"></div>
+              {renderDesignControls()}
+              <div className="pt-4 pb-10">
+                 <button 
+                   onClick={handleExport}
+                   className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold shadow-xl hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                 >
+                   <Download size={18} />
+                   Экспорт в PNG
+                 </button>
+              </div>
+            </>
+          ) : (
+            renderLibrary()
+          )}
         </div>
       </div>
 
@@ -608,14 +811,16 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center justify-between px-6 pb-2">
            <h2 className="text-lg font-bold text-slate-800">
-             {activeMobileTab === 'generator' ? 'Генератор' : 'Настройки дизайна'}
+             {activeMobileTab === 'generator' ? 'Генератор' : activeMobileTab === 'design' ? 'Дизайн' : 'Коллекция'}
            </h2>
            <button onClick={() => setActiveMobileTab(null)} className="p-2 bg-slate-100 rounded-full text-slate-500">
              <X size={18} />
            </button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
-           {activeMobileTab === 'generator' ? renderGeneratorControls() : renderDesignControls()}
+           {activeMobileTab === 'generator' && renderGeneratorControls()}
+           {activeMobileTab === 'design' && renderDesignControls()}
+           {activeMobileTab === 'library' && renderLibrary()}
         </div>
       </div>
 
@@ -714,14 +919,15 @@ const App: React.FC = () => {
            <span className="text-[10px] font-bold">Дизайн</span>
          </button>
 
+         {/* New Library Tab on Mobile */}
          <button 
-           onClick={handleExport}
-           className="flex flex-col items-center justify-center gap-1 w-20 h-full text-slate-400 active:text-slate-800"
+           onClick={() => setActiveMobileTab('library')}
+           className={`flex flex-col items-center justify-center gap-1 w-20 h-full ${activeMobileTab === 'library' ? 'text-blue-600' : 'text-slate-400'}`}
          >
-           <div className="w-10 h-10 rounded-2xl flex items-center justify-center bg-transparent active:bg-slate-100 transition-all">
-              <Download size={22} />
+           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${activeMobileTab === 'library' ? 'bg-blue-100' : 'bg-transparent'}`}>
+              <Library size={22} />
            </div>
-           <span className="text-[10px] font-bold">Скачать</span>
+           <span className="text-[10px] font-bold">Коллекция</span>
          </button>
       </div>
 
