@@ -46,9 +46,8 @@ const COLOR_PRESETS = [
 ];
 
 const GRADIENT_PRESETS = [
-  { name: 'Soft White', value: 'linear-gradient(135deg, #FFFFFF, #F1F5F9)' },
-  { name: 'Soft Black', value: 'linear-gradient(135deg, #27272a, #000000)' },
-  { name: 'Paper Texture', value: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E"), linear-gradient(135deg, #FDFBFB, #EBEDEE)` },
+  { name: 'Soft Creme', value: 'linear-gradient(135deg, #F5EDE2, #FFFDF9)' }, // Updated: Warm Creme
+  { name: 'Deep Forest', value: 'linear-gradient(135deg, #243029, #16231D)' }, // Updated: Deep Olive Black
   { name: 'Cherry Crush', value: 'linear-gradient(135deg, #E84F5E, #FCDFC5)' },
   { name: 'Vanilla Teal', value: 'linear-gradient(135deg, #F3E5C3, #174E4F)' },
   { name: 'Sage Olive', value: 'linear-gradient(135deg, #ABC8A2, #1A2417)' },

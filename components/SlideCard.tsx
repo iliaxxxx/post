@@ -64,17 +64,25 @@ const applyHighlights = (text: string, theme: Theme) => {
 
 // --- HELPER FOR BACKGROUND ---
 const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any) => {
-    let backgroundImage = null;
+    let backgroundImage = undefined;
     let backgroundColor = undefined;
     let background = undefined;
 
     if (bgImage) {
         if (bgImage.startsWith('http') || bgImage.startsWith('data:image')) {
+            // If it's an image URL or Data URI
             backgroundImage = `url(${bgImage})`;
+            // CRITICAL: Explicitly set background to none to override any potential gradient shorthand
+            // that might persist from previous state or class styles.
+            background = 'none'; 
+            backgroundColor = 'transparent';
         } else if (bgImage.includes('url(')) {
             backgroundImage = bgImage;
+            background = 'none';
+            backgroundColor = 'transparent';
         } else {
-            background = bgImage; // Hex or Gradient
+            // It's a gradient or hex color
+            background = bgImage; 
         }
     }
 

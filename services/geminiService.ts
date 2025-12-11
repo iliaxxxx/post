@@ -170,18 +170,20 @@ export const generateSlideImage = async (
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const model = "gemini-2.5-flash-image";
     
+    // Using English prompt for better image generation results
     const prompt = `
-      Realistic cinematic photo, 8k resolution, highly detailed, photorealistic.
-      Subject: "${topic}".
-      Context/Vibe: "${slideContext}".
-      Style: Cinematic lighting, professional photography, depth of field, high quality, 8k, masterpiece.
-      IMPORTANT: NO TEXT, NO WORDS, NO LETTERS, NO SIGNATURES in the image. Pure photography only.
-      Abstract or metaphorical representation is allowed if the topic is abstract.
+      Create a high-quality, photorealistic, 8k background image for a presentation slide.
+      Topic: "${topic}".
+      Context: "${slideContext.slice(0, 200)}".
+      Style: Cinematic lighting, professional photography, depth of field.
+      Constraints: NO TEXT, NO LETTERS, NO NUMBERS in the image. Pure visual composition.
+      If the topic is abstract, create a symbolic or atmospheric image representing the mood.
     `;
 
+    // Passing the string directly to contents is often more robust for this model
     const response = await ai.models.generateContent({
       model: model,
-      contents: { parts: [{ text: prompt }] },
+      contents: prompt,
       config: {
         imageConfig: {
             aspectRatio: "3:4" 
@@ -197,10 +199,11 @@ export const generateSlideImage = async (
         }
     }
     
+    console.warn("No inlineData found in response", response);
     return null;
 
   } catch (error) {
     console.error("Gemini Image Gen Error:", error);
-    throw new Error("Не удалось сгенерировать изображение.");
+    throw new Error("Не удалось сгенерировать изображение. Возможно, запрос был заблокирован.");
   }
 };
