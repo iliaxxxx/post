@@ -58,13 +58,6 @@ const applyHighlights = (text: string, theme: Theme) => {
   processed = processed.replace(/\{r\}(.+?)\{\/r\}/g, '<span class="text-[#FF5A5A] font-bold">$1</span>');
   processed = processed.replace(/\{g\}(.+?)\{\/g\}/g, '<span class="text-[#4ADE80] font-bold">$1</span>');
 
-  if (theme === Theme.DARK_MODERN) {
-      processed = processed.replace(/(\b\d+(?:[-–][а-яА-Яa-zA-Z]+)?(?:[.,]\d+)?\s*(?:%|x|k|млн|тыс|г\.?|год|лет)?\b)/gi, (match) => {
-          if (processed.includes(`>${match}<`)) return match; 
-          return `<span class="text-[#5A9CFF]">${match}</span>`;
-      });
-  }
-
   return processed;
 };
 
