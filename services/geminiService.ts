@@ -1,9 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SlideData, Tone } from "../types";
 
-// Initialize the client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const getToneDescription = (tone: Tone): string => {
   switch (tone) {
     case Tone.PROVOCATIVE: return "Дерзкий, провокационный, спорящий с общепринятым мнением. Используй жесткие факты и триггеры.";
@@ -21,6 +18,8 @@ export const generateCarouselContent = async (
   tone: Tone
 ): Promise<SlideData[]> => {
   try {
+    // Initialize client inside the function to ensure process.env.API_KEY is available
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const model = "gemini-2.5-flash";
     const toneDesc = getToneDescription(tone);
     
@@ -107,6 +106,7 @@ export const regenerateSlideContent = async (
   tone: Tone
 ): Promise<SlideData> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const model = "gemini-2.5-flash";
     const toneDesc = getToneDescription(tone);
     
@@ -167,6 +167,7 @@ export const generateBackgroundImage = async (
   slideContext: SlideData
 ): Promise<string> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const model = "gemini-2.5-flash-image";
     
     // Construct a specific visual prompt
