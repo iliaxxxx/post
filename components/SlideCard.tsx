@@ -17,7 +17,6 @@ interface SlideCardProps {
   // Actions
   onRegenerate?: () => void;
   onUploadBg?: () => void;
-  onGenerateBg?: () => void; // New prop for AI image gen
   onDelete?: () => void;
   isRegenerating?: boolean;
 }
@@ -181,7 +180,7 @@ const EditableText = ({
 };
 
 export const SlideCard: React.FC<SlideCardProps> = (props) => {
-  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg, onGenerateBg } = props;
+  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg } = props;
   
   // Merge backgrounds: Custom > Global > Theme Default (handled in components)
   // But if customStyle.backgroundValue is present (from Editor), it takes precedence over everything
@@ -222,15 +221,6 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
                title="Перегенерировать этот слайд"
              >
                <RefreshCw size={16} />
-             </button>
-           )}
-           {onGenerateBg && (
-             <button 
-               onClick={(e) => { e.stopPropagation(); onGenerateBg(); }} 
-               className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100"
-               title="Сгенерировать AI фон"
-             >
-               <Wand2 size={16} />
              </button>
            )}
            {onUploadBg && (
@@ -324,17 +314,24 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
           </div>
         </div>
         
-        {/* FOOTER - ALIGNMENT FIX */}
-        <div className="mt-auto pt-4 pb-2 flex items-center justify-between text-zinc-400">
-           <Heart className="w-6 h-6 sm:w-7 sm:h-7 text-red-600 fill-red-600 shrink-0" strokeWidth={0} />
-           
-           <div className="text-[9px] sm:text-[10px] text-zinc-600 text-center leading-tight max-w-[140px] select-none font-medium px-2">
-             делись и сохрани, чтобы не потерять
+        {/* FOOTER - ALIGNMENT FIX & MONOCHROME ICONS */}
+        <div className="mt-auto pt-4 pb-2 relative flex items-center justify-between w-full" style={{ color: overrides.color || 'inherit' }}>
+           {/* Left Icon */}
+           <div className="flex items-center justify-start z-10">
+              <Heart className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 opacity-90" strokeWidth={0} fill="currentColor" />
            </div>
            
-           <div className="flex items-center gap-3 shrink-0">
-             <Send className="w-5 h-5 sm:w-6 sm:h-6 -rotate-12 text-zinc-400 hover:text-white transition-colors" strokeWidth={1.5} />
-             <Bookmark className="w-6 h-6 sm:w-7 sm:h-7 text-[#FFC400] fill-[#FFC400]" strokeWidth={0} />
+           {/* Center Text - Absolutely centered */}
+           <div className="absolute inset-x-0 flex justify-center items-center pointer-events-none">
+              <div className="text-[9px] sm:text-[10px] text-center leading-tight max-w-[160px] select-none font-medium opacity-75">
+                делись и сохрани,<br/>чтобы не потерять
+              </div>
+           </div>
+           
+           {/* Right Icons */}
+           <div className="flex items-center gap-4 justify-end z-10">
+             <Send className="w-5 h-5 sm:w-6 sm:h-6 -rotate-12 shrink-0 opacity-90" strokeWidth={2} />
+             <Bookmark className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 opacity-90" strokeWidth={0} fill="currentColor" />
            </div>
         </div>
       </div>

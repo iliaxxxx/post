@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { generateCarouselContent, regenerateSlideContent, generateBackgroundImage } from './services/geminiService';
+import { generateCarouselContent, regenerateSlideContent } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
@@ -43,6 +43,16 @@ const INITIAL_FONTS = [
 const COLOR_PRESETS = [
   '#000000', '#FFFFFF', '#F43F5E', '#8B5CF6', 
   '#3B82F6', '#10B981', '#F59E0B', '#64748B'
+];
+
+const GRADIENT_PRESETS = [
+  { name: 'Cherry Crush', value: 'linear-gradient(135deg, #E84F5E, #FCDFC5)' },
+  { name: 'Vanilla Teal', value: 'linear-gradient(135deg, #F3E5C3, #174E4F)' },
+  { name: 'Sage Olive', value: 'linear-gradient(135deg, #ABC8A2, #1A2417)' },
+  { name: 'Mint Mustard', value: 'linear-gradient(135deg, #D7EAE2, #4B421B)' },
+  { name: 'Lime Evergreen', value: 'linear-gradient(135deg, #8ED968, #103C1F)' },
+  { name: 'Burgundy Sand', value: 'linear-gradient(135deg, #5C0E14, #F0E193)' },
+  { name: 'Ocean Sky', value: 'linear-gradient(135deg, #2772A0, #CCDDEA)' },
 ];
 
 type MobileTab = 'generator' | 'design' | 'library' | null;
@@ -169,20 +179,6 @@ const App: React.FC = () => {
     }
   };
 
-  const handleAiBackgroundGeneration = async () => {
-    const slide = slides[activeSlideIndex];
-    setLoadingSlides(prev => ({ ...prev, [slide.number]: true }));
-    try {
-      const imageUrl = await generateBackgroundImage(config.topic, slide);
-      updateSlideStyle({ backgroundType: 'image', backgroundValue: imageUrl });
-    } catch (err) {
-      console.error(err);
-      alert("Не удалось сгенерировать изображение.");
-    } finally {
-      setLoadingSlides(prev => ({ ...prev, [slide.number]: false }));
-    }
-  };
-
   const handleContentChange = (field: keyof SlideData, value: string) => {
     setSlides(prev => {
       const newSlides = [...prev];
@@ -222,12 +218,16 @@ const App: React.FC = () => {
     const currentSlideNum = slides[activeSlideIndex].number;
     const currentBg = slideStyles[currentSlideNum]?.backgroundValue;
     if (!currentBg) return;
+    
+    // Check if it's gradient or image
+    const type = slideStyles[currentSlideNum]?.backgroundType;
+
     setSlideStyles(prev => {
       const newStyles = { ...prev };
       slides.forEach(s => {
         newStyles[s.number] = {
           ...(newStyles[s.number] || DEFAULT_STYLE),
-          backgroundType: 'image',
+          backgroundType: type || 'image', // Default fallback
           backgroundValue: currentBg
         };
       });
@@ -401,7 +401,6 @@ const App: React.FC = () => {
         onSlideChange={handleContentChange}
         onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
         onUploadBg={() => fileInputRef.current?.click()}
-        onGenerateBg={() => handleAiBackgroundGeneration()}
         isRegenerating={loadingSlides[currentSlideData.number]}
         customStyle={currentStyle}
         className="w-full h-full"
@@ -489,11 +488,6 @@ const App: React.FC = () => {
 
   const renderDesignControls = () => (
     <section className="space-y-6">
-      <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
-        <Palette size={16} className="text-pink-500" />
-        Дизайн
-      </div>
-
       <div className="space-y-2">
          <div className="flex items-center gap-2">
             <AtSign size={14} className="text-slate-400" />
@@ -511,27 +505,22 @@ const App: React.FC = () => {
       <div className="space-y-2">
          <div className="flex items-center gap-2">
             <ImagePlus size={14} className="text-slate-400" />
-            <label className="text-xs font-semibold text-slate-500">Фон слайда</label>
+            <label className="text-xs font-semibold text-slate-500">Готовые фоны</label>
          </div>
-         <div className="flex gap-2">
+         {/* Gradient Presets */}
+         <div className="grid grid-cols-4 gap-2">
+           {GRADIENT_PRESETS.map((preset) => (
              <button
-                 onClick={() => fileInputRef.current?.click()}
-                 className="flex-1 py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
-             >
-                 <ImagePlus size={14} />
-                 Загрузить
-             </button>
-             
-             <button
-                 onClick={handleAiBackgroundGeneration}
-                  className="px-3 py-2 bg-purple-50 text-purple-600 rounded-xl text-xs font-bold hover:bg-purple-100 transition-colors"
-                  title="AI Генерация фона"
-             >
-                 <Sparkles size={14} />
-             </button>
+               key={preset.name}
+               onClick={() => updateSlideStyle({ backgroundType: 'gradient', backgroundValue: preset.value })}
+               className={`w-full aspect-square rounded-lg shadow-sm hover:scale-105 transition-transform border border-black/5 ${currentStyle.backgroundValue === preset.value ? 'ring-2 ring-purple-500' : ''}`}
+               style={{ background: preset.value }}
+               title={preset.name}
+             />
+           ))}
          </div>
 
-         {currentStyle.backgroundType === 'image' && (
+         {(currentStyle.backgroundType === 'image' || currentStyle.backgroundType === 'gradient') && (
              <div className="grid grid-cols-2 gap-2 mt-2">
                  <button
                      onClick={handleApplyBgToAll}
