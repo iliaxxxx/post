@@ -129,8 +129,9 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({
              
              <InstagramHeader />
 
-             {/* CAROUSEL CONTENT */}
-             <div className="w-full aspect-[4/5] bg-gray-100 relative overflow-hidden shadow-sm">
+             {/* CAROUSEL CONTENT CONTAINER */}
+             {/* Updated background to adapt to isDark so it doesn't flash white or show white borders */}
+             <div className={`w-full aspect-[4/5] ${isDark ? 'bg-zinc-800' : 'bg-gray-100'} relative overflow-hidden shadow-sm`}>
                 {children}
              </div>
 

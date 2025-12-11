@@ -18,7 +18,6 @@ export const generateCarouselContent = async (
   tone: Tone
 ): Promise<SlideData[]> => {
   try {
-    // Initialize client inside the function to ensure process.env.API_KEY is available
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const model = "gemini-2.5-flash";
     const toneDesc = getToneDescription(tone);
@@ -52,24 +51,10 @@ export const generateCarouselContent = async (
           items: {
             type: Type.OBJECT,
             properties: {
-              title: { 
-                type: Type.STRING, 
-                description: "Заголовок слайда" 
-              },
-              content: { 
-                type: Type.STRING, 
-                description: "Основной текст" 
-              },
-              highlight: {
-                type: Type.STRING,
-                description: "Акцентная фраза или цифра",
-                nullable: true
-              },
-              cta: {
-                type: Type.STRING,
-                description: "Призыв к действию (только для последнего слайда, для остальных null)",
-                nullable: true
-              }
+              title: { type: Type.STRING },
+              content: { type: Type.STRING },
+              highlight: { type: Type.STRING, nullable: true },
+              cta: { type: Type.STRING, nullable: true }
             },
             required: ["title", "content"]
           }
@@ -78,13 +63,10 @@ export const generateCarouselContent = async (
     });
 
     const jsonText = response.text;
-    if (!jsonText) {
-      throw new Error("Empty response from AI");
-    }
+    if (!jsonText) throw new Error("Empty response from AI");
 
     const rawSlides = JSON.parse(jsonText) as any[];
 
-    // Map to ensure numbering
     return rawSlides.map((slide, index) => ({
       number: index + 1,
       title: slide.title,
@@ -166,44 +148,69 @@ export const generateSlideImage = async (
   topic: string,
   slideContext: string
 ): Promise<string | null> => {
-  try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const model = "gemini-2.5-flash-image";
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const prompt = `
+    Create a hyper-realistic, high-resolution cinematic background image for a presentation slide.
+    Topic: "${topic}".
+    Context: "${slideContext.slice(0, 150)}".
     
-    // Using English prompt for better image generation results
-    const prompt = `
-      Create a high-quality, photorealistic, 8k background image for a presentation slide.
-      Topic: "${topic}".
-      Context: "${slideContext.slice(0, 200)}".
-      Style: Cinematic lighting, professional photography, depth of field.
-      Constraints: NO TEXT, NO LETTERS, NO NUMBERS in the image. Pure visual composition.
-      If the topic is abstract, create a symbolic or atmospheric image representing the mood.
-    `;
+    Style Requirements:
+    - Aesthetic: Dark, moody, premium, sleek.
+    - Lighting: Cinematic, dramatic, high contrast, volumetric lighting.
+    - Colors: Deep blacks, dark greys, muted neutral tones. Avoid neon or oversaturated colors.
+    - Composition: Minimalist, plenty of negative space, vertical orientation (3:4 ratio).
+    - Texture: If abstract, use materials like dark glass, matte metal, smoke, or marble.
+    - Content: Photorealistic photography or high-end 3D abstract.
+    - STRICTLY NO TEXT: The image must contain NO letters, numbers, or watermarks.
+    
+    The image should look like a high-end Unsplash background.
+  `;
 
-    // Passing the string directly to contents is often more robust for this model
+  // Strategy: Try Gemini 2.5 Flash Image first (Standard) -> Imagen 3.0 (Fallback)
+  
+  // Attempt 1: Gemini 2.5 Flash Image
+  try {
     const response = await ai.models.generateContent({
-      model: model,
-      contents: prompt,
+      model: "gemini-2.5-flash-image",
+      contents: { parts: [{ text: prompt }] },
       config: {
-        imageConfig: {
-            aspectRatio: "3:4" 
-        }
+        imageConfig: { aspectRatio: "3:4" }
       }
     });
 
-    if (response.candidates && response.candidates[0].content.parts) {
+    if (response.candidates?.[0]?.content?.parts) {
         for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
+            if (part.inlineData && part.inlineData.data && part.inlineData.data.length > 100) {
                 return `data:image/png;base64,${part.inlineData.data}`;
             }
         }
     }
-    
-    console.warn("No inlineData found in response", response);
-    return null;
-
-  } catch (error) {
-    console.error("Gemini Image Gen Error:", error);
-    throw new Error("Не удалось сгенерировать изображение. Возможно, запрос был заблокирован.");
+  } catch (error: any) {
+    console.warn("Gemini 2.5 Flash Image failed, attempting fallback...", error);
+    // Continue to next attempt if error is not critical, or just let it fall through
   }
+
+  // Attempt 2: Imagen 3.0
+  try {
+    const response = await ai.models.generateImages({
+        model: 'imagen-3.0-generate-001',
+        prompt: prompt,
+        config: {
+            numberOfImages: 1,
+            aspectRatio: '3:4',
+            outputMimeType: 'image/jpeg'
+        }
+    });
+    
+    const imageBytes = response.generatedImages?.[0]?.image?.imageBytes;
+    if (imageBytes && imageBytes.length > 100) {
+        return `data:image/jpeg;base64,${imageBytes}`;
+    }
+  } catch (error) {
+    console.error("Imagen generation also failed:", error);
+  }
+
+  // Final catch-all: Throw error to alert user
+  throw new Error("Не удалось сгенерировать изображение. Попробуйте позже.");
 };

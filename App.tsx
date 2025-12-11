@@ -3,7 +3,7 @@ import { generateCarouselContent, regenerateSlideContent, generateSlideImage } f
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, Link as LinkIcon } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -56,6 +56,34 @@ const INITIAL_FONTS = [
   { name: 'Comfortaa', label: 'Comfortaa (Мягкий)' },
   { name: 'Courier Prime', label: 'Courier (Ретро)' },
 ];
+
+// Font Pairing Logic
+const FONT_PAIRINGS: Record<string, string> = {
+  // Sans pairings
+  'Inter': 'Inter',
+  'Golos Text': 'Inter',
+  'Manrope': 'Golos Text',
+  'Montserrat': 'Inter',
+  'Unbounded': 'Inter', // Contrast width
+
+  // Display pairings
+  'Bebas Neue': 'Montserrat', // Classic YT style
+  'Oswald': 'Open Sans', // Or Inter/Roboto
+  'Anton': 'Inter', // Max readability for heavy title
+  'Russo One': 'Golos Text', // Modern russian vibes
+  'Tektur': 'Manrope', // Tech + Clean
+
+  // Serif pairings
+  'Cormorant Garamond': 'Manrope', // Elegant + Clean Sans
+  'Playfair Display': 'Golos Text', // High contrast
+  'Merriweather': 'Inter', // Classic
+  'Alice': 'Montserrat', // Quirky + Geometric
+
+  // Vibe pairings
+  'Caveat': 'Golos Text', // Hand + Clean
+  'Comfortaa': 'Manrope', // Round + Semi-round
+  'Courier Prime': 'Inter', // Brutalist contrast
+};
 
 const COLOR_PRESETS = [
   '#000000', '#FFFFFF', '#F43F5E', '#8B5CF6', 
@@ -130,19 +158,8 @@ const App: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (slides.length > 0) {
-      const newStyles = { ...slideStyles };
-      let changed = false;
-      slides.forEach(s => {
-        if (!newStyles[s.number]) {
-          newStyles[s.number] = { ...DEFAULT_STYLE };
-          changed = true;
-        }
-      });
-      if (changed) setSlideStyles(newStyles);
-    }
-  }, [slides.length]);
+  // Removed problematic useEffect that was overwriting styles on slide changes.
+  // We handle missing styles gracefully in the render logic instead.
 
   // --- LOGIC HELPERS ---
 
@@ -201,7 +218,10 @@ const App: React.FC = () => {
   
   const handleGenerateAIBackground = async () => {
       const slide = slides[activeSlideIndex];
-      setGeneratingBgSlides(prev => ({ ...prev, [slide.number]: true }));
+      // Capture the slide number *before* async operation to prevent closures issues if index changes
+      const targetSlideNumber = slide.number;
+
+      setGeneratingBgSlides(prev => ({ ...prev, [targetSlideNumber]: true }));
       try {
           const topic = config.topic || slide.title;
           const context = slide.content;
@@ -210,8 +230,8 @@ const App: React.FC = () => {
           if (bgImage) {
               setSlideStyles(prev => ({
                 ...prev,
-                [slide.number]: {
-                  ...(prev[slide.number] || DEFAULT_STYLE),
+                [targetSlideNumber]: {
+                  ...(prev[targetSlideNumber] || DEFAULT_STYLE),
                   backgroundType: 'image',
                   backgroundValue: bgImage
                 }
@@ -221,7 +241,7 @@ const App: React.FC = () => {
           console.error(e);
           alert("Не удалось сгенерировать изображение");
       } finally {
-          setGeneratingBgSlides(prev => ({ ...prev, [slide.number]: false }));
+          setGeneratingBgSlides(prev => ({ ...prev, [targetSlideNumber]: false }));
       }
   };
 
@@ -440,6 +460,7 @@ const App: React.FC = () => {
   // --- HELPER FOR RENDERING SLIDE ---
   const renderCurrentSlide = (isMobile: boolean) => (
       <SlideCard 
+        key={currentSlideData.number} // ADDED KEY TO PREVENT STATE BLEEDING AND ENSURE BG UPDATE
         data={currentSlideData}
         theme={config.theme}
         totalSlides={slides.length}
@@ -534,7 +555,11 @@ const App: React.FC = () => {
     </section>
   );
 
-  const renderDesignControls = () => (
+  const renderDesignControls = () => {
+    const currentTitleFont = currentStyle.titleFontFamily || 'Inter';
+    const recommendedBodyFont = FONT_PAIRINGS[currentTitleFont];
+
+    return (
     <section className="space-y-6">
       <div className="space-y-2">
          <div className="flex items-center gap-2">
@@ -650,9 +675,23 @@ const App: React.FC = () => {
                  >
                    <option value="">По умолчанию</option>
                    {availableFonts.map(f => (
-                     <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
+                     <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>
+                       {f.label} {f.name === recommendedBodyFont ? '✨' : ''}
+                     </option>
                    ))}
                  </select>
+                 
+                 {recommendedBodyFont && (currentStyle.bodyFontFamily !== recommendedBodyFont) && (
+                   <div 
+                     onClick={() => updateGlobalStyle({ bodyFontFamily: recommendedBodyFont })}
+                     className="flex items-center gap-1.5 mt-1 ml-1 cursor-pointer group"
+                   >
+                     <Sparkles size={12} className="text-amber-500" />
+                     <p className="text-[10px] text-slate-400 group-hover:text-purple-600 transition-colors">
+                       Совет: используйте <span className="font-bold underline decoration-dotted">{recommendedBodyFont}</span> для пары
+                     </p>
+                   </div>
+                 )}
              </div>
 
              <div className="flex gap-2 mt-1">
@@ -733,7 +772,7 @@ const App: React.FC = () => {
          />
       </div>
     </section>
-  );
+  )};
 
   const renderLibrary = () => (
     <section className="space-y-4">

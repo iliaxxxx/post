@@ -63,36 +63,38 @@ const applyHighlights = (text: string, theme: Theme) => {
 };
 
 // --- HELPER FOR BACKGROUND ---
-const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any) => {
-    let backgroundImage = undefined;
-    let backgroundColor = undefined;
-    let background = undefined;
-
-    if (bgImage) {
-        if (bgImage.startsWith('http') || bgImage.startsWith('data:image')) {
-            // If it's an image URL or Data URI
-            backgroundImage = `url(${bgImage})`;
-            // CRITICAL: Explicitly set background to none to override any potential gradient shorthand
-            // that might persist from previous state or class styles.
-            background = 'none'; 
-            backgroundColor = 'transparent';
-        } else if (bgImage.includes('url(')) {
-            backgroundImage = bgImage;
-            background = 'none';
-            backgroundColor = 'transparent';
-        } else {
-            // It's a gradient or hex color
-            background = bgImage; 
-        }
-    }
-
-    return {
-        backgroundImage,
-        backgroundColor,
-        background,
+// COMPLETELY REWRITTEN TO FIX MOCKUP TRANSPARENCY BUG
+const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any, isDarkTheme: boolean): React.CSSProperties => {
+    const style: React.CSSProperties = {
+        // Always set a safe fallback color first. 
+        // This ensures that if the image fails or is loading, the card is not transparent/white (which looks broken on the mockup).
+        backgroundColor: isDarkTheme ? '#18181b' : '#ffffff',
+        
+        // Ensure images cover the area properly
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        
+        // Text styles
         textAlign: overrides.textAlign || undefined,
         color: overrides.color,
     };
+
+    if (bgImage) {
+        if (bgImage.startsWith('http') || bgImage.startsWith('data:image')) {
+            // It's an image URL or Base64
+            style.backgroundImage = `url(${bgImage})`;
+        } else if (bgImage.includes('gradient') || bgImage.includes('url(')) {
+            // It's a CSS gradient string or explicit url()
+            style.backgroundImage = bgImage;
+        } else {
+            // It's likely a hex color code
+            style.backgroundColor = bgImage;
+            style.backgroundImage = 'none';
+        }
+    }
+
+    return style;
 };
 
 // --- HELPER FOR GLOW ---
@@ -292,18 +294,13 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-2xl sm:text-3xl';
   const contentSize = customStyle ? getSizeClass(customStyle.fontSize, 'content') : 'text-sm sm:text-base';
-  const bgConfig = getBackgroundConfig(bgImage, overrides);
+  const bgConfig = getBackgroundConfig(bgImage, overrides, true); // true = isDark
   
-  // Default dark background if no image is present or explicit color set
-  if (!bgConfig.backgroundImage && !bgConfig.background) {
-      bgConfig.backgroundColor = '#202020';
-  }
-
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.4 : 0);
 
   return (
     <div 
-      className="w-full h-full text-white flex flex-col p-6 sm:p-8 relative overflow-hidden bg-cover bg-center bg-zinc-900" 
+      className="w-full h-full text-white flex flex-col p-6 sm:p-8 relative overflow-hidden bg-zinc-900" 
       style={{ 
           ...bgConfig,
           fontFamily: overrides.bodyFontFamily 
@@ -369,16 +366,15 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
 const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-5xl';
-  const bgConfig = getBackgroundConfig(bgImage, overrides);
+  const bgConfig = getBackgroundConfig(bgImage, overrides, false); // false = not dark
   
-  if (!bgConfig.backgroundImage && !bgConfig.background) bgConfig.backgroundColor = '#F5F5F0';
   if (!bgConfig.textAlign) bgConfig.textAlign = 'center';
 
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.2 : 0);
 
   return (
     <div 
-      className="w-full h-full flex flex-col relative overflow-hidden bg-cover bg-center"
+      className="w-full h-full flex flex-col relative overflow-hidden"
       style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
     >
        <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
@@ -420,14 +416,13 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
 const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-4xl';
-  const bgConfig = getBackgroundConfig(bgImage, overrides);
+  const bgConfig = getBackgroundConfig(bgImage, overrides, true);
 
-  if (!bgConfig.backgroundImage && !bgConfig.background) bgConfig.backgroundColor = 'black';
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.7 : 0);
 
   return (
     <div 
-      className="w-full h-full text-white flex flex-col p-6 sm:p-8 relative overflow-hidden bg-cover bg-center"
+      className="w-full h-full text-white flex flex-col p-6 sm:p-8 relative overflow-hidden"
       style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
     >
       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
@@ -465,13 +460,13 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
 const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, isDark, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : (isFirst ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl');
-  const bgConfig = getBackgroundConfig(bgImage, overrides);
+  const bgConfig = getBackgroundConfig(bgImage, overrides, isDark);
 
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? (isDark ? 0.7 : 0.2) : 0);
 
   return (
     <div 
-      className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 transition-all duration-300 select-none relative overflow-hidden bg-cover bg-center ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
+      className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 transition-all duration-300 select-none relative overflow-hidden ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
       style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
     >
       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
