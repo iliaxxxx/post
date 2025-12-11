@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { generateCarouselContent, regenerateSlideContent } from './services/geminiService';
+import { generateCarouselContent, regenerateSlideContent, generateSlideImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
@@ -46,6 +46,9 @@ const COLOR_PRESETS = [
 ];
 
 const GRADIENT_PRESETS = [
+  { name: 'Soft White', value: 'linear-gradient(135deg, #FFFFFF, #F1F5F9)' },
+  { name: 'Soft Black', value: 'linear-gradient(135deg, #27272a, #000000)' },
+  { name: 'Paper Texture', value: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.07'/%3E%3C/svg%3E"), linear-gradient(135deg, #FDFBFB, #EBEDEE)` },
   { name: 'Cherry Crush', value: 'linear-gradient(135deg, #E84F5E, #FCDFC5)' },
   { name: 'Vanilla Teal', value: 'linear-gradient(135deg, #F3E5C3, #174E4F)' },
   { name: 'Sage Olive', value: 'linear-gradient(135deg, #ABC8A2, #1A2417)' },
@@ -92,6 +95,7 @@ const App: React.FC = () => {
   // Editing State
   const [slideStyles, setSlideStyles] = useState<Record<number, SlideStyle>>({});
   const [loadingSlides, setLoadingSlides] = useState<Record<number, boolean>>({});
+  const [generatingBgSlides, setGeneratingBgSlides] = useState<Record<number, boolean>>({});
 
   // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,6 +181,32 @@ const App: React.FC = () => {
     } finally {
       setLoadingSlides(prev => ({ ...prev, [slide.number]: false }));
     }
+  };
+  
+  const handleGenerateAIBackground = async () => {
+      const slide = slides[activeSlideIndex];
+      setGeneratingBgSlides(prev => ({ ...prev, [slide.number]: true }));
+      try {
+          const topic = config.topic || slide.title;
+          const context = slide.content;
+          const bgImage = await generateSlideImage(topic, context);
+          
+          if (bgImage) {
+              setSlideStyles(prev => ({
+                ...prev,
+                [slide.number]: {
+                  ...(prev[slide.number] || DEFAULT_STYLE),
+                  backgroundType: 'image',
+                  backgroundValue: bgImage
+                }
+              }));
+          }
+      } catch (e) {
+          console.error(e);
+          alert("Не удалось сгенерировать изображение");
+      } finally {
+          setGeneratingBgSlides(prev => ({ ...prev, [slide.number]: false }));
+      }
   };
 
   const handleContentChange = (field: keyof SlideData, value: string) => {
@@ -401,7 +431,9 @@ const App: React.FC = () => {
         onSlideChange={handleContentChange}
         onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
         onUploadBg={() => fileInputRef.current?.click()}
+        onGenerateBg={handleGenerateAIBackground}
         isRegenerating={loadingSlides[currentSlideData.number]}
+        isGeneratingBg={generatingBgSlides[currentSlideData.number]}
         customStyle={currentStyle}
         className="w-full h-full"
       />

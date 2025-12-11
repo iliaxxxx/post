@@ -17,8 +17,10 @@ interface SlideCardProps {
   // Actions
   onRegenerate?: () => void;
   onUploadBg?: () => void;
+  onGenerateBg?: () => void;
   onDelete?: () => void;
   isRegenerating?: boolean;
+  isGeneratingBg?: boolean;
 }
 
 // Helper: Convert size enum to tailwind class
@@ -180,7 +182,7 @@ const EditableText = ({
 };
 
 export const SlideCard: React.FC<SlideCardProps> = (props) => {
-  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg } = props;
+  const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg, onGenerateBg } = props;
   
   // Merge backgrounds: Custom > Global > Theme Default (handled in components)
   // But if customStyle.backgroundValue is present (from Editor), it takes precedence over everything
@@ -218,7 +220,7 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
              <button 
                onClick={(e) => { e.stopPropagation(); onRegenerate(); }} 
                className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100"
-               title="Перегенерировать этот слайд"
+               title="Перегенерировать текст слайда"
              >
                <RefreshCw size={16} />
              </button>
@@ -232,13 +234,30 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
                <ImagePlus size={16} />
              </button>
            )}
+           {onGenerateBg && (
+             <button 
+               onClick={(e) => { e.stopPropagation(); onGenerateBg(); }} 
+               className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all border border-transparent"
+               title="Сгенерировать AI фон"
+             >
+               <Wand2 size={16} />
+             </button>
+           )}
         </div>
       )}
 
-      {/* Regeneration Spinner Overlay */}
+      {/* Regeneration Spinner Overlay (Text) */}
       {props.isRegenerating && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-[inherit]">
           <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+        </div>
+      )}
+
+      {/* Image Generation Spinner Overlay */}
+      {props.isGeneratingBg && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-[inherit] text-white">
+          <Wand2 className="w-8 h-8 text-purple-400 animate-pulse mb-2" />
+          <span className="text-xs font-bold uppercase tracking-wider">Создаю фото...</span>
         </div>
       )}
     </div>

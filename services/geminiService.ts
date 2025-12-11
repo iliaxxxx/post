@@ -161,3 +161,46 @@ export const regenerateSlideContent = async (
     throw new Error("Не удалось перегенерировать слайд.");
   }
 };
+
+export const generateSlideImage = async (
+  topic: string,
+  slideContext: string
+): Promise<string | null> => {
+  try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const model = "gemini-2.5-flash-image";
+    
+    const prompt = `
+      Realistic cinematic photo, 8k resolution, highly detailed, photorealistic.
+      Subject: "${topic}".
+      Context/Vibe: "${slideContext}".
+      Style: Cinematic lighting, professional photography, depth of field, high quality, 8k, masterpiece.
+      IMPORTANT: NO TEXT, NO WORDS, NO LETTERS, NO SIGNATURES in the image. Pure photography only.
+      Abstract or metaphorical representation is allowed if the topic is abstract.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: model,
+      contents: { parts: [{ text: prompt }] },
+      config: {
+        imageConfig: {
+            aspectRatio: "3:4" 
+        }
+      }
+    });
+
+    if (response.candidates && response.candidates[0].content.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
+    }
+    
+    return null;
+
+  } catch (error) {
+    console.error("Gemini Image Gen Error:", error);
+    throw new Error("Не удалось сгенерировать изображение.");
+  }
+};
