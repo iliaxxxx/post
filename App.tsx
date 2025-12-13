@@ -982,13 +982,13 @@ const App: React.FC = () => {
                 <div className={`relative z-10 flex-1 flex flex-col items-center transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
                     activeMobileTab 
                        ? 'justify-start pt-4 scale-90 -translate-y-4' // Push up state
-                       : 'justify-center pb-24 px-4 pt-4' // Normal centered state
+                       : 'justify-center pb-20' // Full height view
                 }`}>
                     
-                    {/* Carousel Card Container */}
+                    {/* Carousel Card Container - Full Bleed */}
                     <div 
-                      className={`w-full max-w-sm aspect-[4/5] shadow-2xl rounded-2xl overflow-hidden ring-1 ring-black/5 relative transition-all duration-300 ${
-                          activeMobileTab ? 'shadow-lg' : 'shadow-2xl'
+                      className={`w-full aspect-[4/5] relative transition-all duration-300 ${
+                          activeMobileTab ? 'shadow-lg rounded-xl overflow-hidden' : 'shadow-none'
                       }`}
                     >
                         {renderCurrentSlide(true)}
