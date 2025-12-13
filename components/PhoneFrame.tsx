@@ -22,7 +22,7 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({
   // --- COMPONENTS ---
   
   const InstagramHeader = () => (
-     <div className={`px-3 py-3 flex items-center justify-between z-20 relative ${viewMode === 'mobile' ? 'bg-white/5 backdrop-blur-sm' : ''}`}>
+     <div className={`px-3 py-3 flex items-center justify-between z-20 relative`}>
         <div className="flex items-center gap-2.5">
            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 p-[1.5px] shrink-0">
              <div className={`w-full h-full rounded-full ${viewMode === 'desktop' ? bgTheme : 'bg-white'} border-[2px] border-transparent overflow-hidden`}>
@@ -77,9 +77,9 @@ export const PhoneFrame: React.FC<PhoneFrameProps> = ({
   // --- MOBILE VIEW (FEED STYLE) ---
   if (viewMode === 'mobile') {
       return (
-         <div className={`w-full flex flex-col ${isDark ? 'bg-zinc-900' : 'bg-white'} shadow-sm overflow-hidden`}>
+         <div className={`w-full flex flex-col ${isDark ? 'bg-zinc-900' : 'bg-white'} shadow-xl rounded-2xl overflow-hidden ring-1 ring-black/5`}>
             <InstagramHeader />
-            <div className={`w-full aspect-[4/5] relative ${isDark ? 'bg-zinc-800' : 'bg-gray-100'} shadow-inner`}>
+            <div className={`w-full aspect-[4/5] relative ${isDark ? 'bg-zinc-800' : 'bg-gray-100'}`}>
                {children}
             </div>
             <InstagramFooter />

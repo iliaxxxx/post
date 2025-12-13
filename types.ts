@@ -5,6 +5,7 @@ export enum Theme {
   RETRO_PAPER = 'retro_paper',
   BOLD_NEON = 'bold_neon',
   DARK_MODERN = 'dark_modern',
+  AURORA_GREEN = 'aurora_green',
 }
 
 export enum Tone {

@@ -2,13 +2,20 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#18181b" media="(prefers-color-scheme: dark)" />
+    
     <title>CarouselAI - Генератор</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Alice&family=Anton&family=Bebas+Neue&family=Caveat:wght@400..700&family=Comfortaa:wght@300..700&family=Cormorant+Garamond:wght@300;400;600;700&family=Courier+Prime:wght@400;700&family=Golos+Text:wght@400..900&family=Inter:wght@300;400;600;700&family=Manrope:wght@200..800&family=Merriweather:wght@300;400;700&family=Montserrat:wght@400;600;800&family=Oswald:wght@200..700&family=Outfit:wght@300;500;700;900&family=Playfair+Display:wght@400;700&family=Roboto+Slab:wght@400;700&family=Russo+One&family=Tektur:wght@400..900&family=Unbounded:wght@200..900&display=swap" rel="stylesheet" crossorigin="anonymous">
     <style>
       body {
         font-family: 'Inter', sans-serif;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior-y: none; /* Prevent pull-to-refresh */
       }
       /* Hide scrollbar for clean carousel view but allow scrolling */
       .no-scrollbar::-webkit-scrollbar {
@@ -17,6 +24,14 @@
       .no-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
+      }
+      
+      /* Safe Area Utilities */
+      .pb-safe {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      .pt-safe {
+        padding-top: env(safe-area-inset-top);
       }
       
       /* Paper texture utility */
@@ -40,7 +55,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-50 text-gray-900 overflow-hidden">
-    <div id="root"></div>
+  <body class="bg-gray-50 text-gray-900 overflow-hidden fixed inset-0">
+    <div id="root" class="h-full w-full"></div>
   </body>
 </html>

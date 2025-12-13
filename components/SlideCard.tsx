@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SlideData, Theme, SlideStyle, TextSize, TextAlign } from '../types';
-import { Heart, Send, Bookmark, ImagePlus, RefreshCw, Zap, Trash2, ArrowLeft, ArrowRight, Highlighter, Wand2 } from 'lucide-react';
+import { Heart, Send, Bookmark, ImagePlus, RefreshCw, Zap, Trash2, ArrowLeft, ArrowRight, Highlighter, Wand2, Circle, Globe } from 'lucide-react';
 
 interface SlideCardProps {
   data: SlideData;
@@ -58,37 +58,30 @@ const applyHighlights = (text: string, theme: Theme) => {
   processed = processed.replace(/\*([^*]+)\*/g, '<span class="text-[#5A9CFF] font-bold">$1</span>');
   processed = processed.replace(/\{r\}(.+?)\{\/r\}/g, '<span class="text-[#FF5A5A] font-bold">$1</span>');
   processed = processed.replace(/\{g\}(.+?)\{\/g\}/g, '<span class="text-[#4ADE80] font-bold">$1</span>');
+  
+  // Arrow handling for Aurora theme
+  processed = processed.replace(/->/g, '→');
 
   return processed;
 };
 
 // --- HELPER FOR BACKGROUND ---
-// COMPLETELY REWRITTEN TO FIX MOCKUP TRANSPARENCY BUG
 const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any, isDarkTheme: boolean): React.CSSProperties => {
     const style: React.CSSProperties = {
-        // Always set a safe fallback color first. 
-        // This ensures that if the image fails or is loading, the card is not transparent/white (which looks broken on the mockup).
         backgroundColor: isDarkTheme ? '#18181b' : '#ffffff',
-        
-        // Ensure images cover the area properly
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        
-        // Text styles
         textAlign: overrides.textAlign || undefined,
         color: overrides.color,
     };
 
     if (bgImage) {
         if (bgImage.startsWith('http') || bgImage.startsWith('data:image')) {
-            // It's an image URL or Base64
             style.backgroundImage = `url(${bgImage})`;
         } else if (bgImage.includes('gradient') || bgImage.includes('url(')) {
-            // It's a CSS gradient string or explicit url()
             style.backgroundImage = bgImage;
         } else {
-            // It's likely a hex color code
             style.backgroundColor = bgImage;
             style.backgroundImage = 'none';
         }
@@ -100,10 +93,7 @@ const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any,
 // --- HELPER FOR GLOW ---
 const getGlowStyle = (enabled?: boolean, color?: string, isDark?: boolean) => {
   if (!enabled) return {};
-  
-  // Try to parse color or default to white/theme color
   const glowColor = color && color !== '' ? color : (isDark ? 'rgba(255,255,255,0.8)' : 'rgba(0,0,0,0.5)');
-  
   return {
     textShadow: `0 0 10px ${glowColor}, 0 0 20px ${glowColor}, 0 0 40px ${glowColor}`
   };
@@ -119,7 +109,7 @@ const EditableText = ({
   readOnly = false,
   theme,
   autoHighlight = false,
-  styleOverride, // New prop to pass inline styles
+  styleOverride,
   glowEnabled = false,
   glowColor = ''
 }: { 
@@ -156,8 +146,6 @@ const EditableText = ({
 
   const htmlContent = applyHighlights(value, theme);
 
-  // Merge glow style if enabled
-  // We assume light glow for dark themes usually, handled by parent, or passed color
   const finalStyle = {
     ...styleOverride,
     ...(glowEnabled ? getGlowStyle(true, glowColor, theme !== Theme.MINIMAL_LIGHT && theme !== Theme.RETRO_PAPER) : {})
@@ -194,8 +182,6 @@ const EditableText = ({
 export const SlideCard: React.FC<SlideCardProps> = (props) => {
   const { data, theme, totalSlides, globalBackground, customBackground, readOnly = false, className = '', customStyle, onRegenerate, onUploadBg, onGenerateBg } = props;
   
-  // Merge backgrounds: Custom > Global > Theme Default (handled in components)
-  // But if customStyle.backgroundValue is present (from Editor), it takes precedence over everything
   const editorBg = customStyle?.backgroundType === 'image' || customStyle?.backgroundType === 'gradient' || customStyle?.backgroundType === 'solid' 
     ? customStyle.backgroundValue 
     : undefined;
@@ -209,6 +195,7 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
 
   const renderCard = () => {
     switch (theme) {
+      case Theme.AURORA_GREEN: return <AuroraCard {...commonProps} />;
       case Theme.RETRO_PAPER: return <RetroPaperCard {...commonProps} />;
       case Theme.BOLD_NEON: return <BoldNeonCard {...commonProps} />;
       case Theme.DARK_MODERN: return <DarkModernCard {...commonProps} />;
@@ -223,47 +210,32 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
         {renderCard()}
       </div>
       
-      {/* HOVER ACTIONS OVERLAY */}
       {!readOnly && (
         <div className="absolute top-4 right-4 z-40 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none group-hover:pointer-events-auto">
            {onRegenerate && (
-             <button 
-               onClick={(e) => { e.stopPropagation(); onRegenerate(); }} 
-               className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100"
-               title="Перегенерировать текст слайда"
-             >
+             <button onClick={(e) => { e.stopPropagation(); onRegenerate(); }} className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100" title="Перегенерировать">
                <RefreshCw size={16} />
              </button>
            )}
            {onUploadBg && (
-             <button 
-               onClick={(e) => { e.stopPropagation(); onUploadBg(); }} 
-               className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100"
-               title="Загрузить фото на фон"
-             >
+             <button onClick={(e) => { e.stopPropagation(); onUploadBg(); }} className="w-9 h-9 bg-white/90 backdrop-blur text-slate-700 rounded-full flex items-center justify-center shadow-lg hover:bg-white hover:text-purple-600 hover:scale-110 transition-all border border-slate-100" title="Загрузить фото">
                <ImagePlus size={16} />
              </button>
            )}
            {onGenerateBg && (
-             <button 
-               onClick={(e) => { e.stopPropagation(); onGenerateBg(); }} 
-               className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all border border-transparent"
-               title="Сгенерировать AI фон"
-             >
+             <button onClick={(e) => { e.stopPropagation(); onGenerateBg(); }} className="w-9 h-9 bg-gradient-to-br from-purple-500 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-all border border-transparent" title="Сгенерировать AI">
                <Wand2 size={16} />
              </button>
            )}
         </div>
       )}
 
-      {/* Regeneration Spinner Overlay (Text) */}
       {props.isRegenerating && (
         <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-[inherit]">
           <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
         </div>
       )}
 
-      {/* Image Generation Spinner Overlay */}
       {props.isGeneratingBg && (
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-[inherit] text-white">
           <Wand2 className="w-8 h-8 text-purple-400 animate-pulse mb-2" />
@@ -274,7 +246,7 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
   );
 };
 
-// --- UTILS FOR STYLE OVERRIDES ---
+// --- UTILS ---
 const getOverrides = (customStyle?: SlideStyle) => {
   if (!customStyle) return {};
   return {
@@ -289,6 +261,125 @@ const getOverrides = (customStyle?: SlideStyle) => {
 };
 
 // --- STYLE COMPONENTS ---
+
+const AuroraCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
+  const overrides = getOverrides(customStyle);
+  const isCover = data.number === 1;
+  const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : (isCover ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl');
+
+  // Exact reproduction of the requested "Aurora" texture
+  const auroraTexture = `
+    repeating-linear-gradient(90deg, 
+      transparent 0%, 
+      transparent 6%, 
+      rgba(255, 255, 255, 0.05) 9%, 
+      rgba(255, 255, 255, 0.12) 12%, 
+      rgba(255, 255, 255, 0.03) 15%, 
+      transparent 18%
+    ),
+    linear-gradient(180deg, #0e1c14 0%, #1a332a 30%, #5ba56d 100%)
+  `;
+  
+  const bgConfig = getBackgroundConfig(bgImage || auroraTexture, overrides, true);
+
+  return (
+    <div 
+      className="w-full h-full text-white flex flex-col relative overflow-hidden font-['Manrope']"
+      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
+    >
+      {/* Noise Texture Overlay */}
+      <div className="absolute inset-0 opacity-[0.4] pointer-events-none z-0 mix-blend-overlay" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`
+      }}></div>
+
+      {/* --- LAYOUT FOR COVER SLIDE --- */}
+      {isCover ? (
+        <div className="relative z-10 flex flex-col h-full p-6 sm:p-8">
+           {/* Blurred Background Text */}
+           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden">
+             <div 
+               className="text-[4rem] sm:text-[6rem] font-bold text-white opacity-[0.1] blur-[8px] leading-tight text-center scale-[1.6] whitespace-pre-wrap font-['Manrope']"
+             >
+                {data.title}
+             </div>
+           </div>
+
+           {/* Header */}
+           <div className="relative z-10 flex justify-between items-center text-[10px] sm:text-[11px] font-medium tracking-wide opacity-80 uppercase font-['Inter']">
+              <span>web-design</span>
+              <Circle size={5} fill="#D9F99D" className="text-[#D9F99D]" />
+              <span>{username.replace('@', '')}.so</span>
+           </div>
+
+           {/* Main Content */}
+           <div className="relative z-10 flex-1 flex flex-col justify-center gap-4">
+              <EditableText 
+                 tagName="h2" 
+                 className={`font-semibold leading-[1.1] tracking-tight ${titleSize} drop-shadow-lg`} 
+                 value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
+                 styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
+                 glowEnabled={overrides.titleGlow}
+                 glowColor={overrides.titleColor}
+              />
+              
+              {data.highlight && (
+                 <div className="mt-1">
+                    <span className="inline-block border border-white/20 bg-white/5 rounded-full px-4 py-1.5 text-[11px] sm:text-xs backdrop-blur-md text-emerald-100">
+                      <EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} />
+                    </span>
+                 </div>
+              )}
+           </div>
+
+           {/* Footer */}
+           <div className="relative z-10 mt-auto pt-8 flex justify-between items-end text-[10px] sm:text-[11px] opacity-90">
+              <div className="flex items-center gap-2 font-medium">
+                 <Bookmark size={16} fill="currentColor" />
+                 <span>сохраняй себе</span>
+              </div>
+           </div>
+        </div>
+      ) : (
+        /* --- LAYOUT FOR CONTENT SLIDES --- */
+        <div className="relative z-10 flex flex-col h-full p-6 sm:p-8">
+           {/* Header */}
+           <div className="relative z-10 flex justify-between items-start text-[10px] sm:text-[11px] font-medium tracking-wide opacity-70 uppercase font-['Inter'] mb-6">
+              <span className="max-w-[50%] opacity-60 text-left">// {data.title.substring(0, 20)}...</span>
+           </div>
+
+           {/* Main Content */}
+           <div className="relative z-10 flex-1 flex flex-col">
+              <EditableText 
+                 tagName="h2" 
+                 className={`font-semibold leading-[1.15] tracking-tight mb-4 ${titleSize}`} 
+                 value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
+                 styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
+                 glowEnabled={overrides.titleGlow}
+                 glowColor={overrides.titleColor}
+              />
+              
+              {/* Tag Pill */}
+              <div className="flex items-center gap-2 mb-6">
+                 <span className="font-mono text-emerald-200 opacity-60 text-xs">(0{data.number})</span>
+                 {data.highlight && (
+                    <span className="border border-white/30 rounded-full px-3 py-0.5 text-[10px] uppercase tracking-wide">
+                        <EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} />
+                    </span>
+                 )}
+              </div>
+
+              {/* Body Text */}
+              <div className="mt-auto bg-black/20 backdrop-blur-sm rounded-xl p-4 sm:p-5 border border-white/5">
+                <div className={`font-light leading-relaxed text-sm sm:text-base opacity-95 text-emerald-50`} style={{ fontFamily: overrides.bodyFontFamily }}>
+                   <EditableText tagName="div" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color }} />
+                </div>
+              </div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);

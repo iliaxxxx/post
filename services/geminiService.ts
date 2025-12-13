@@ -1,6 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SlideData, Tone } from "../types";
 
+// Helper to safely get API Key without crashing if process is undefined
+const getApiKey = (): string => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore error if process is not defined
+  }
+  return '';
+};
+
 const getToneDescription = (tone: Tone): string => {
   switch (tone) {
     case Tone.PROVOCATIVE: return "Дерзкий, провокационный, спорящий с общепринятым мнением. Используй жесткие факты и триггеры.";
@@ -17,8 +29,13 @@ export const generateCarouselContent = async (
   count: number,
   tone: Tone
 ): Promise<SlideData[]> => {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error("API Key не найден. Проверьте настройки окружения (.env).");
+  }
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const model = "gemini-2.5-flash";
     const toneDesc = getToneDescription(tone);
     
@@ -63,7 +80,7 @@ export const generateCarouselContent = async (
     });
 
     const jsonText = response.text;
-    if (!jsonText) throw new Error("Empty response from AI");
+    if (!jsonText) throw new Error("Пустой ответ от AI");
 
     const rawSlides = JSON.parse(jsonText) as any[];
 
@@ -75,9 +92,14 @@ export const generateCarouselContent = async (
       cta: slide.cta || undefined
     }));
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini API Error:", error);
-    throw new Error("Не удалось сгенерировать карусель. Попробуйте другую тему.");
+    // Pass the actual error message if possible
+    const msg = error.message || "Неизвестная ошибка";
+    if (msg.includes("API key not valid")) {
+       throw new Error("Неверный API ключ. Проверьте настройки.");
+    }
+    throw new Error(`Ошибка генерации: ${msg}`);
   }
 };
 
@@ -87,8 +109,11 @@ export const regenerateSlideContent = async (
   totalSlides: number,
   tone: Tone
 ): Promise<SlideData> => {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key не найден");
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const model = "gemini-2.5-flash";
     const toneDesc = getToneDescription(tone);
     
@@ -140,7 +165,7 @@ export const regenerateSlideContent = async (
 
   } catch (error) {
     console.error("Gemini Slide Regen Error:", error);
-    throw new Error("Не удалось перегенерировать слайд.");
+    throw error;
   }
 };
 
@@ -148,7 +173,10 @@ export const generateSlideImage = async (
   topic: string,
   slideContext: string
 ): Promise<string | null> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key не найден");
+
+  const ai = new GoogleGenAI({ apiKey });
   
   const prompt = `
     Create a hyper-realistic, high-resolution cinematic background image for a presentation slide.
@@ -212,5 +240,5 @@ export const generateSlideImage = async (
   }
 
   // Final catch-all: Throw error to alert user
-  throw new Error("Не удалось сгенерировать изображение. Попробуйте позже.");
+  throw new Error("Не удалось сгенерировать изображение. Попробуйте позже или проверьте квоты.");
 };

@@ -3,7 +3,7 @@ import { generateCarouselContent, regenerateSlideContent, generateSlideImage } f
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, Link as LinkIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, Link as LinkIcon, AlertCircle, LayoutTemplate, Share, Eye } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -102,6 +102,14 @@ const GRADIENT_PRESETS = [
   { name: 'Ocean Sky', value: 'linear-gradient(135deg, #2772A0, #CCDDEA)' },
 ];
 
+const THEME_PRESETS = [
+  { id: Theme.AURORA_GREEN, label: 'Aurora', color: 'bg-emerald-800', textColor: 'text-white' },
+  { id: Theme.DARK_MODERN, label: 'Dark', color: 'bg-zinc-900', textColor: 'text-white' },
+  { id: Theme.MINIMAL_LIGHT, label: 'Light', color: 'bg-white border border-gray-200', textColor: 'text-black' },
+  { id: Theme.BOLD_NEON, label: 'Neon', color: 'bg-indigo-600', textColor: 'text-white' },
+  { id: Theme.RETRO_PAPER, label: 'Retro', color: 'bg-[#F5F5F0]', textColor: 'text-black' },
+];
+
 type MobileTab = 'generator' | 'design' | 'library' | null;
 type SidebarTab = 'editor' | 'library';
 
@@ -119,6 +127,7 @@ const App: React.FC = () => {
   const [slides, setSlides] = useState<SlideData[]>(DEMO_SLIDES);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
   // Font State
   const [availableFonts, setAvailableFonts] = useState(INITIAL_FONTS);
@@ -158,9 +167,6 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Removed problematic useEffect that was overwriting styles on slide changes.
-  // We handle missing styles gracefully in the render logic instead.
-
   // --- LOGIC HELPERS ---
 
   const mapSliderToTone = (val: number): Tone => {
@@ -182,6 +188,7 @@ const App: React.FC = () => {
   const handleGenerate = async () => {
     if (!config.topic) return alert("Введите тему");
     setIsGenerating(true);
+    setError(null);
     setActiveMobileTab(null); // Close drawer on mobile
     setActiveSidebarTab('editor'); // Switch to editor
     try {
@@ -191,8 +198,9 @@ const App: React.FC = () => {
       setActiveSlideIndex(0);
       setSlideStyles({});
       setConfig(prev => ({ ...prev, tone }));
-    } catch (error) {
-      alert("Ошибка генерации. Попробуйте еще раз.");
+    } catch (error: any) {
+      const msg = error.message || "Ошибка генерации";
+      setError(msg);
       console.error(error);
     } finally {
       setIsGenerating(false);
@@ -211,6 +219,7 @@ const App: React.FC = () => {
       });
     } catch (e) {
       console.error(e);
+      alert("Не удалось обновить слайд");
     } finally {
       setLoadingSlides(prev => ({ ...prev, [slide.number]: false }));
     }
@@ -218,7 +227,6 @@ const App: React.FC = () => {
   
   const handleGenerateAIBackground = async () => {
       const slide = slides[activeSlideIndex];
-      // Capture the slide number *before* async operation to prevent closures issues if index changes
       const targetSlideNumber = slide.number;
 
       setGeneratingBgSlides(prev => ({ ...prev, [targetSlideNumber]: true }));
@@ -237,9 +245,9 @@ const App: React.FC = () => {
                 }
               }));
           }
-      } catch (e) {
+      } catch (e: any) {
           console.error(e);
-          alert("Не удалось сгенерировать изображение");
+          alert(e.message || "Не удалось сгенерировать изображение");
       } finally {
           setGeneratingBgSlides(prev => ({ ...prev, [targetSlideNumber]: false }));
       }
@@ -284,8 +292,6 @@ const App: React.FC = () => {
     const currentSlideNum = slides[activeSlideIndex].number;
     const currentBg = slideStyles[currentSlideNum]?.backgroundValue;
     if (!currentBg) return;
-    
-    // Check if it's gradient or image
     const type = slideStyles[currentSlideNum]?.backgroundType;
 
     setSlideStyles(prev => {
@@ -293,7 +299,7 @@ const App: React.FC = () => {
       slides.forEach(s => {
         newStyles[s.number] = {
           ...(newStyles[s.number] || DEFAULT_STYLE),
-          backgroundType: type || 'image', // Default fallback
+          backgroundType: type || 'image',
           backgroundValue: currentBg
         };
       });
@@ -340,32 +346,22 @@ const App: React.FC = () => {
     }
   };
 
-  // --- CUSTOM FONT HANDLER ---
   const handleAddCustomFont = () => {
     if (!customFontInput.trim()) return;
-
     const fontName = customFontInput.trim();
     const formattedName = fontName.replace(/\s+/g, '+');
     const url = `https://fonts.googleapis.com/css2?family=${formattedName}:wght@300;400;700;900&display=swap`;
-
-    // Create and append link element
     const link = document.createElement('link');
     link.href = url;
     link.rel = 'stylesheet';
     document.head.appendChild(link);
-
-    // Add to state
     const newFont = { name: fontName, label: `${fontName} (Custom)` };
     setAvailableFonts(prev => [...prev, newFont]);
-    
-    // Apply immediately to both for visibility
     updateGlobalStyle({ titleFontFamily: fontName, bodyFontFamily: fontName });
-    
     setCustomFontInput('');
     alert(`Шрифт ${fontName} добавлен!`);
   };
 
-  // --- LIBRARY FUNCTIONS ---
   const handleSaveToLibrary = () => {
     const newCarousel: SavedCarousel = {
       id: Date.now().toString(),
@@ -460,7 +456,7 @@ const App: React.FC = () => {
   // --- HELPER FOR RENDERING SLIDE ---
   const renderCurrentSlide = (isMobile: boolean) => (
       <SlideCard 
-        key={currentSlideData.number} // ADDED KEY TO PREVENT STATE BLEEDING AND ENSURE BG UPDATE
+        key={currentSlideData.number}
         data={currentSlideData}
         theme={config.theme}
         totalSlides={slides.length}
@@ -476,7 +472,7 @@ const App: React.FC = () => {
       />
   );
 
-  // --- SHARED UI COMPONENTS (RENDER FUNCTIONS) ---
+  // --- RENDER SECTIONS ---
 
   const renderGeneratorControls = () => (
     <section className="space-y-5">
@@ -485,6 +481,19 @@ const App: React.FC = () => {
         Генератор
       </div>
       
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-pulse">
+            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
+            <div className="flex flex-col gap-1">
+                <span className="text-xs font-bold text-red-700">Ошибка</span>
+                <span className="text-xs text-red-600 leading-snug">{error}</span>
+            </div>
+            <button onClick={() => setError(null)} className="ml-auto text-red-400 hover:text-red-600">
+                <X size={16} />
+            </button>
+        </div>
+      )}
+
       <div className="space-y-2">
         <label className="text-xs font-semibold text-slate-500 ml-1">Тема карусели</label>
         <input 
@@ -561,6 +570,33 @@ const App: React.FC = () => {
 
     return (
     <section className="space-y-6">
+      
+      {/* Template Selector */}
+      <div className="space-y-2">
+         <div className="flex items-center gap-2">
+            <LayoutTemplate size={14} className="text-slate-400" />
+            <label className="text-xs font-semibold text-slate-500">Шаблоны</label>
+         </div>
+         <div className="grid grid-cols-3 gap-2">
+           {THEME_PRESETS.map((t) => (
+             <button
+                key={t.id}
+                onClick={() => {
+                  setConfig(prev => ({ ...prev, theme: t.id }));
+                  updateGlobalStyle({ titleColor: '', textColor: '' }); 
+                }}
+                className={`relative h-16 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all overflow-hidden ${config.theme === t.id ? 'ring-2 ring-purple-500 ring-offset-1 border-transparent' : 'border-slate-200 hover:border-purple-300'}`}
+             >
+                <div className={`absolute inset-0 opacity-20 ${t.color}`}></div>
+                <div className={`z-10 w-6 h-6 rounded-full ${t.color} shadow-sm border border-white/20`}></div>
+                <span className="z-10 text-[10px] font-bold text-slate-700">{t.label}</span>
+             </button>
+           ))}
+         </div>
+      </div>
+
+      <div className="h-px bg-slate-100 w-full"></div>
+
       <div className="space-y-2">
          <div className="flex items-center gap-2">
             <AtSign size={14} className="text-slate-400" />
@@ -580,7 +616,6 @@ const App: React.FC = () => {
             <ImagePlus size={14} className="text-slate-400" />
             <label className="text-xs font-semibold text-slate-500">Готовые фоны</label>
          </div>
-         {/* Gradient Presets */}
          <div className="grid grid-cols-4 gap-2">
            {GRADIENT_PRESETS.map((preset) => (
              <button
@@ -613,7 +648,6 @@ const App: React.FC = () => {
          )}
       </div>
 
-      {/* NEW: Title Glow Toggle */}
       <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100">
          <div className="flex items-center gap-2">
             <Lightbulb size={16} className="text-indigo-500" />
@@ -650,7 +684,6 @@ const App: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-         {/* Font Selection Group */}
          <div className="flex flex-col gap-3">
              <div className="space-y-1">
                  <label className="text-xs font-semibold text-slate-500 ml-1">Шрифт заголовка</label>
@@ -680,18 +713,6 @@ const App: React.FC = () => {
                      </option>
                    ))}
                  </select>
-                 
-                 {recommendedBodyFont && (currentStyle.bodyFontFamily !== recommendedBodyFont) && (
-                   <div 
-                     onClick={() => updateGlobalStyle({ bodyFontFamily: recommendedBodyFont })}
-                     className="flex items-center gap-1.5 mt-1 ml-1 cursor-pointer group"
-                   >
-                     <Sparkles size={12} className="text-amber-500" />
-                     <p className="text-[10px] text-slate-400 group-hover:text-purple-600 transition-colors">
-                       Совет: используйте <span className="font-bold underline decoration-dotted">{recommendedBodyFont}</span> для пары
-                     </p>
-                   </div>
-                 )}
              </div>
 
              <div className="flex gap-2 mt-1">
@@ -817,7 +838,7 @@ const App: React.FC = () => {
   return (
     <div className="flex flex-col lg:flex-row h-[100dvh] w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
       
-      {/* --- DESKTOP LEFT SIDEBAR --- */}
+      {/* --- DESKTOP LEFT SIDEBAR (Unchanged) --- */}
       <div className="hidden lg:flex w-[420px] h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex-col shadow-2xl z-20 relative">
         <div className="p-6 border-b border-gray-100 bg-white/50">
            <div className="flex items-center gap-2 mb-1">
@@ -830,8 +851,6 @@ const App: React.FC = () => {
            </div>
            <p className="text-xs text-slate-400 font-medium ml-10">AI-Powered Instagram Generator</p>
         </div>
-
-        {/* Sidebar Tabs */}
         <div className="px-6 pt-4">
            <div className="flex p-1 bg-slate-100 rounded-xl">
               <button 
@@ -848,7 +867,6 @@ const App: React.FC = () => {
               </button>
            </div>
         </div>
-
         <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
           {activeSidebarTab === 'editor' ? (
             <>
@@ -871,33 +889,151 @@ const App: React.FC = () => {
         </div>
       </div>
 
-      {/* --- MOBILE DRAWER (BOTTOM SHEET) --- */}
-      {/* Overlay */}
-      {activeMobileTab && (
-        <div 
-          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity"
-          onClick={() => setActiveMobileTab(null)}
-        />
-      )}
-      
-      {/* Drawer Content */}
-      <div className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white rounded-t-[2rem] shadow-2xl z-50 transition-transform duration-300 ease-out flex flex-col max-h-[85vh] ${activeMobileTab ? 'translate-y-0' : 'translate-y-full'}`}>
-        <div className="w-full flex justify-center pt-3 pb-1" onClick={() => setActiveMobileTab(null)}>
-           <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
-        </div>
-        <div className="flex items-center justify-between px-6 pb-2">
-           <h2 className="text-lg font-bold text-slate-800">
-             {activeMobileTab === 'generator' ? 'Генератор' : activeMobileTab === 'design' ? 'Дизайн' : 'Коллекция'}
-           </h2>
-           <button onClick={() => setActiveMobileTab(null)} className="p-2 bg-slate-100 rounded-full text-slate-500">
-             <X size={18} />
-           </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-24">
-           {activeMobileTab === 'generator' && renderGeneratorControls()}
-           {activeMobileTab === 'design' && renderDesignControls()}
-           {activeMobileTab === 'library' && renderLibrary()}
-        </div>
+      {/* --- DESKTOP PREVIEW AREA (Unchanged) --- */}
+      <div className="hidden lg:flex relative flex-1 h-full flex-col overflow-hidden">
+         <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 z-0"></div>
+         <div className="relative z-10 w-full h-full flex items-center justify-center">
+             <div className="relative scale-[0.85] 2xl:scale-100 transition-transform duration-500 origin-center">
+                 <PhoneFrame username={username} isDark={true} viewMode="desktop">
+                   {renderCurrentSlide(false)}
+                 </PhoneFrame>
+                 <button 
+                    onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
+                    className="absolute top-1/2 -left-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                    disabled={activeSlideIndex === 0}
+                  >
+                    <ChevronLeft size={32} />
+                  </button>
+                  <button 
+                    onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
+                    className="absolute top-1/2 -right-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
+                    disabled={activeSlideIndex === slides.length - 1}
+                  >
+                    <ChevronRight size={32} />
+                  </button>
+             </div>
+         </div>
+      </div>
+
+      {/* =========================================================================
+          MOBILE LAYOUT - iOS APP STYLE
+          ========================================================================= */}
+      <div className="lg:hidden flex flex-col h-full bg-slate-50 overflow-hidden relative">
+         
+         {/* iOS Header */}
+         <div className="pt-safe px-4 pb-2 bg-white/80 backdrop-blur-xl sticky top-0 z-20 border-b border-black/5 flex justify-between items-center">
+            <div className="flex items-center gap-1.5 pt-2">
+               <Sparkles className="text-purple-600" size={18} />
+               <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">CarouselKit</span>
+            </div>
+            <div className="pt-2 flex gap-2">
+               <button onClick={handleExport} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
+                  <Share size={16} />
+               </button>
+            </div>
+         </div>
+
+         {/* Mobile Preview Area (Scrollable Feed) */}
+         <div 
+           className="flex-1 overflow-y-auto overflow-x-hidden relative"
+           onTouchStart={onTouchStart}
+           onTouchMove={onTouchMove}
+           onTouchEnd={onTouchEnd}
+         >  
+           {/* Background Mesh */}
+           <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 z-0"></div>
+
+           <div className="relative z-10 pb-32">
+              <div className="py-4 flex justify-center">
+                 <div className="w-full max-w-[400px]">
+                    <PhoneFrame username={username} isDark={true} viewMode="mobile">
+                       {renderCurrentSlide(true)}
+                    </PhoneFrame>
+                 </div>
+              </div>
+
+              {/* Slide Indicators */}
+              <div className="flex justify-center gap-1.5 pb-6">
+                 {slides.map((_, idx) => (
+                    <div 
+                      key={idx}
+                      onClick={() => setActiveSlideIndex(idx)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeSlideIndex ? 'w-4 bg-purple-600' : 'w-1.5 bg-slate-300'}`}
+                    />
+                 ))}
+              </div>
+              
+              <div className="text-center text-xs text-slate-400 font-medium px-10">
+                 Свайпайте влево/вправо для просмотра. <br/> Нажмите на вкладки внизу для редактирования.
+              </div>
+           </div>
+         </div>
+
+         {/* iOS Tab Bar (Bottom Nav) */}
+         <div className="pb-safe bg-white/90 backdrop-blur-xl border-t border-black/5 absolute bottom-0 left-0 right-0 z-30">
+            <div className="flex justify-around items-center h-16 px-1">
+               <button 
+                 onClick={() => setActiveMobileTab('generator')}
+                 className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors ${activeMobileTab === 'generator' ? 'text-purple-600' : 'text-slate-400'}`}
+               >
+                 <Wand2 size={24} strokeWidth={activeMobileTab === 'generator' ? 2.5 : 2} />
+                 <span className="text-[10px] font-medium">Создать</span>
+               </button>
+               
+               {/* Center Action Button (Toggle View/Edit) */}
+               <div className="relative -top-5">
+                  <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-pink-600 rounded-full shadow-lg shadow-purple-200 flex items-center justify-center text-white border-[3px] border-white">
+                     <span className="font-bold text-lg">{activeSlideIndex + 1}</span>
+                  </div>
+               </div>
+
+               <button 
+                 onClick={() => setActiveMobileTab('design')}
+                 className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors ${activeMobileTab === 'design' ? 'text-purple-600' : 'text-slate-400'}`}
+               >
+                 <Palette size={24} strokeWidth={activeMobileTab === 'design' ? 2.5 : 2} />
+                 <span className="text-[10px] font-medium">Стиль</span>
+               </button>
+            </div>
+         </div>
+
+         {/* iOS Modal Sheets (Drawers) */}
+         {activeMobileTab && (
+           <div className="fixed inset-0 z-50 flex items-end justify-center">
+             {/* Backdrop */}
+             <div 
+               className="absolute inset-0 bg-black/20 backdrop-blur-[2px] transition-opacity"
+               onClick={() => setActiveMobileTab(null)}
+             ></div>
+
+             {/* Sheet */}
+             <div 
+               className="bg-white w-full rounded-t-[2rem] shadow-2xl relative z-10 animate-in slide-in-from-bottom duration-300 pb-safe max-h-[85vh] flex flex-col"
+               style={{ willChange: 'transform' }}
+             >
+                {/* Handle Bar */}
+                <div className="w-full flex justify-center pt-3 pb-2 cursor-grab" onClick={() => setActiveMobileTab(null)}>
+                   <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
+                </div>
+
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 pb-4 border-b border-slate-50">
+                   <h2 className="text-xl font-bold text-slate-800 tracking-tight">
+                     {activeMobileTab === 'generator' ? 'Генератор' : 'Дизайн'}
+                   </h2>
+                   <button onClick={() => setActiveMobileTab(null)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200">
+                     <X size={16} />
+                   </button>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6 pb-12">
+                   {activeMobileTab === 'generator' && renderGeneratorControls()}
+                   {activeMobileTab === 'design' && renderDesignControls()}
+                </div>
+             </div>
+           </div>
+         )}
       </div>
 
       {/* --- HIDDEN INPUTS & EXPORT --- */}
@@ -914,99 +1050,6 @@ const App: React.FC = () => {
           ))}
         </div>
       </div>
-
-      {/* --- MAIN AREA (PREVIEW) --- */}
-      <div className="relative flex-1 h-full w-full flex flex-col overflow-hidden bg-slate-50 lg:bg-transparent">
-         {/* Mobile Header Removed - PhoneFrame handles it */}
-         
-         <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 z-0"></div>
-         
-         <div className="relative z-10 w-full h-full flex items-center justify-center lg:pb-0 lg:pt-0 pb-20">
-             
-             {/* DESKTOP VIEW: Phone Frame Mockup */}
-             <div className="hidden lg:block relative scale-[0.85] 2xl:scale-100 transition-transform duration-500 origin-center">
-                 <PhoneFrame username={username} isDark={true} viewMode="desktop">
-                   {renderCurrentSlide(false)}
-                 </PhoneFrame>
-
-                 {/* Desktop Navigation */}
-                 <button 
-                    onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
-                    className="absolute top-1/2 -left-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
-                    disabled={activeSlideIndex === 0}
-                  >
-                    <ChevronLeft size={32} />
-                  </button>
-                  <button 
-                    onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
-                    className="absolute top-1/2 -right-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
-                    disabled={activeSlideIndex === slides.length - 1}
-                  >
-                    <ChevronRight size={32} />
-                  </button>
-             </div>
-
-             {/* MOBILE VIEW: Clean Card with Swipe */}
-             <div 
-               className="lg:hidden w-full h-full flex flex-col items-center justify-center p-6"
-               onTouchStart={onTouchStart}
-               onTouchMove={onTouchMove}
-               onTouchEnd={onTouchEnd}
-             >
-                 {/* Reverted to simple container instead of PhoneFrame to prevent cutoff and focus on content */}
-                 <div className="relative w-full max-w-[400px] aspect-[4/5] shadow-2xl rounded-3xl overflow-hidden ring-1 ring-black/5 bg-zinc-900">
-                    {renderCurrentSlide(true)}
-                 </div>
-                 
-                 {/* Mobile Slide Indicator (Clickable) - Positioned below post */}
-                 <div className="mt-6 flex gap-2 pb-8">
-                    {slides.map((_, idx) => (
-                      <button 
-                        key={idx} 
-                        onClick={() => setActiveSlideIndex(idx)}
-                        className={`transition-all rounded-full ${idx === activeSlideIndex ? 'bg-slate-800 w-4 h-2' : 'bg-slate-300 w-2 h-2 hover:bg-slate-400'}`}
-                        aria-label={`Go to slide ${idx + 1}`}
-                      />
-                    ))}
-                 </div>
-             </div>
-         </div>
-      </div>
-
-      {/* --- MOBILE BOTTOM NAVIGATION BAR --- */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 h-20 bg-white border-t border-slate-100 flex items-center justify-around z-30 px-2 pb-2">
-         <button 
-           onClick={() => setActiveMobileTab('generator')}
-           className={`flex flex-col items-center justify-center gap-1 w-20 h-full ${activeMobileTab === 'generator' ? 'text-purple-600' : 'text-slate-400'}`}
-         >
-           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${activeMobileTab === 'generator' ? 'bg-purple-100' : 'bg-transparent'}`}>
-              <Wand2 size={22} />
-           </div>
-           <span className="text-[10px] font-bold">Генератор</span>
-         </button>
-
-         <button 
-           onClick={() => setActiveMobileTab('design')}
-           className={`flex flex-col items-center justify-center gap-1 w-20 h-full ${activeMobileTab === 'design' ? 'text-pink-600' : 'text-slate-400'}`}
-         >
-           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${activeMobileTab === 'design' ? 'bg-pink-100' : 'bg-transparent'}`}>
-              <Palette size={22} />
-           </div>
-           <span className="text-[10px] font-bold">Дизайн</span>
-         </button>
-
-         {/* New Library Tab on Mobile */}
-         <button 
-           onClick={() => setActiveMobileTab('library')}
-           className={`flex flex-col items-center justify-center gap-1 w-20 h-full ${activeMobileTab === 'library' ? 'text-blue-600' : 'text-slate-400'}`}
-         >
-           <div className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all ${activeMobileTab === 'library' ? 'bg-blue-100' : 'bg-transparent'}`}>
-              <Library size={22} />
-           </div>
-           <span className="text-[10px] font-bold">Коллекция</span>
-         </button>
-      </div>
-
     </div>
   );
 };
