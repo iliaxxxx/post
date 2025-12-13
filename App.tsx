@@ -3,7 +3,7 @@ import { generateCarouselContent, regenerateSlideContent, generateSlideImage } f
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, Link as LinkIcon, AlertCircle, LayoutTemplate, Share, Eye } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -30,59 +30,54 @@ const DEMO_SLIDES: SlideData[] = [
   }
 ];
 
+// Content Ideas
+const QUICK_TOPICS = [
+  "5 ошибок новичка в...",
+  "Как заработать на...",
+  "Секрет продуктивности",
+  "Тренды 2025 года",
+  "Чек-лист: Готовность к...",
+  "История моего провала"
+];
+
 const INITIAL_FONTS = [
-  // Modern / Geometric
   { name: 'Inter', label: 'Inter (База)' },
   { name: 'Golos Text', label: 'Golos (Тренд 2025)' },
   { name: 'Manrope', label: 'Manrope (Стиль)' },
   { name: 'Montserrat', label: 'Montserrat (Гео)' },
   { name: 'Unbounded', label: 'Unbounded (Смелый)' },
-  
-  // Display / Bold / Impact
   { name: 'Bebas Neue', label: 'Bebas (Caps)' },
   { name: 'Oswald', label: 'Oswald (Узкий)' },
   { name: 'Anton', label: 'Anton (Heavy)' },
   { name: 'Russo One', label: 'Russo (Мощь)' },
   { name: 'Tektur', label: 'Tektur (Cyber)' },
-
-  // Serif / Elegant
   { name: 'Cormorant Garamond', label: 'Cormorant (Люкс)' },
   { name: 'Playfair Display', label: 'Playfair (Элегант)' },
   { name: 'Merriweather', label: 'Merriweather (Чтение)' },
   { name: 'Alice', label: 'Alice (Сказка)' },
-
-  // Handwriting / Retro / Soft
   { name: 'Caveat', label: 'Caveat (Рука)' },
   { name: 'Comfortaa', label: 'Comfortaa (Мягкий)' },
   { name: 'Courier Prime', label: 'Courier (Ретро)' },
 ];
 
-// Font Pairing Logic
 const FONT_PAIRINGS: Record<string, string> = {
-  // Sans pairings
   'Inter': 'Inter',
   'Golos Text': 'Inter',
   'Manrope': 'Golos Text',
   'Montserrat': 'Inter',
-  'Unbounded': 'Inter', // Contrast width
-
-  // Display pairings
-  'Bebas Neue': 'Montserrat', // Classic YT style
-  'Oswald': 'Open Sans', // Or Inter/Roboto
-  'Anton': 'Inter', // Max readability for heavy title
-  'Russo One': 'Golos Text', // Modern russian vibes
-  'Tektur': 'Manrope', // Tech + Clean
-
-  // Serif pairings
-  'Cormorant Garamond': 'Manrope', // Elegant + Clean Sans
-  'Playfair Display': 'Golos Text', // High contrast
-  'Merriweather': 'Inter', // Classic
-  'Alice': 'Montserrat', // Quirky + Geometric
-
-  // Vibe pairings
-  'Caveat': 'Golos Text', // Hand + Clean
-  'Comfortaa': 'Manrope', // Round + Semi-round
-  'Courier Prime': 'Inter', // Brutalist contrast
+  'Unbounded': 'Inter',
+  'Bebas Neue': 'Montserrat',
+  'Oswald': 'Open Sans',
+  'Anton': 'Inter',
+  'Russo One': 'Golos Text',
+  'Tektur': 'Manrope',
+  'Cormorant Garamond': 'Manrope',
+  'Playfair Display': 'Golos Text',
+  'Merriweather': 'Inter',
+  'Alice': 'Montserrat',
+  'Caveat': 'Golos Text',
+  'Comfortaa': 'Manrope',
+  'Courier Prime': 'Inter',
 };
 
 const COLOR_PRESETS = [
@@ -91,8 +86,8 @@ const COLOR_PRESETS = [
 ];
 
 const GRADIENT_PRESETS = [
-  { name: 'Soft Creme', value: 'linear-gradient(135deg, #F5EDE2, #FFFDF9)' }, // Warm Creme
-  { name: 'Deep Obsidian', value: 'linear-gradient(135deg, #18181b, #020202)' }, // Neutral Rich Black
+  { name: 'Soft Creme', value: 'linear-gradient(135deg, #F5EDE2, #FFFDF9)' },
+  { name: 'Deep Obsidian', value: 'linear-gradient(135deg, #18181b, #020202)' },
   { name: 'Cherry Crush', value: 'linear-gradient(135deg, #E84F5E, #FCDFC5)' },
   { name: 'Vanilla Teal', value: 'linear-gradient(135deg, #F3E5C3, #174E4F)' },
   { name: 'Sage Olive', value: 'linear-gradient(135deg, #ABC8A2, #1A2417)' },
@@ -112,6 +107,7 @@ const THEME_PRESETS = [
 
 type MobileTab = 'generator' | 'design' | 'library' | null;
 type SidebarTab = 'editor' | 'library';
+type ViewMode = 'visual' | 'structure'; // New state for switching views
 
 const App: React.FC = () => {
   // --- STATE ---
@@ -122,7 +118,7 @@ const App: React.FC = () => {
     tone: Tone.EXPERT
   });
 
-  const [toneValue, setToneValue] = useState<number>(0); // 0-100
+  const [toneValue, setToneValue] = useState<number>(0);
   const [username, setUsername] = useState<string>('@my_blog');
   const [slides, setSlides] = useState<SlideData[]>(DEMO_SLIDES);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
@@ -139,6 +135,7 @@ const App: React.FC = () => {
   
   // Mobile UI State
   const [activeMobileTab, setActiveMobileTab] = useState<MobileTab>(null);
+  const [mobileViewMode, setMobileViewMode] = useState<ViewMode>('visual');
 
   // Swipe State
   const touchStart = useRef<number | null>(null);
@@ -189,8 +186,9 @@ const App: React.FC = () => {
     if (!config.topic) return alert("Введите тему");
     setIsGenerating(true);
     setError(null);
-    setActiveMobileTab(null); // Close drawer on mobile
-    setActiveSidebarTab('editor'); // Switch to editor
+    setActiveMobileTab(null);
+    setMobileViewMode('structure'); // Switch to structure view after generation
+    setActiveSidebarTab('editor');
     try {
       const tone = mapSliderToTone(toneValue);
       const generatedSlides = await generateCarouselContent(config.topic, config.slideCount, tone);
@@ -263,6 +261,16 @@ const App: React.FC = () => {
         };
       }
       return newSlides;
+    });
+  };
+
+  const handleStructureChange = (index: number, field: keyof SlideData, value: string) => {
+    setSlides(prev => {
+        const newSlides = [...prev];
+        if (newSlides[index]) {
+            newSlides[index] = { ...newSlides[index], [field]: value };
+        }
+        return newSlides;
     });
   };
 
@@ -496,13 +504,27 @@ const App: React.FC = () => {
 
       <div className="space-y-2">
         <label className="text-xs font-semibold text-slate-500 ml-1">Тема карусели</label>
-        <input 
-          type="text" 
-          value={config.topic}
-          onChange={e => setConfig(prev => ({ ...prev, topic: e.target.value }))}
-          placeholder="Например: 5 ошибок в дизайне..."
-          className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 transition-all font-medium placeholder:text-slate-400"
-        />
+        <div className="space-y-3">
+          <input 
+            type="text" 
+            value={config.topic}
+            onChange={e => setConfig(prev => ({ ...prev, topic: e.target.value }))}
+            placeholder="О чем будет пост?"
+            className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 transition-all font-medium placeholder:text-slate-400"
+          />
+          {/* Quick Topics Chips */}
+          <div className="flex flex-wrap gap-2">
+             {QUICK_TOPICS.map(t => (
+                <button
+                   key={t}
+                   onClick={() => setConfig(prev => ({ ...prev, topic: t }))}
+                   className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-[11px] font-medium text-slate-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50 transition-all shadow-sm"
+                >
+                   {t}
+                </button>
+             ))}
+          </div>
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -606,7 +628,7 @@ const App: React.FC = () => {
            type="text" 
            value={username}
            onChange={(e) => setUsername(e.target.value)}
-           className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+           className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
            placeholder="@username"
          />
       </div>
@@ -688,7 +710,7 @@ const App: React.FC = () => {
              <div className="space-y-1">
                  <label className="text-xs font-semibold text-slate-500 ml-1">Шрифт заголовка</label>
                  <select 
-                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
                    value={currentStyle.titleFontFamily || currentStyle.fontFamily || ''}
                    onChange={(e) => updateGlobalStyle({ titleFontFamily: e.target.value })}
                  >
@@ -702,7 +724,7 @@ const App: React.FC = () => {
              <div className="space-y-1">
                  <label className="text-xs font-semibold text-slate-500 ml-1">Шрифт текста</label>
                  <select 
-                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
                    value={currentStyle.bodyFontFamily || currentStyle.fontFamily || ''}
                    onChange={(e) => updateGlobalStyle({ bodyFontFamily: e.target.value })}
                  >
@@ -714,86 +736,69 @@ const App: React.FC = () => {
                    ))}
                  </select>
              </div>
-
-             <div className="flex gap-2 mt-1">
-               <input 
-                 type="text" 
-                 value={customFontInput}
-                 onChange={(e) => setCustomFontInput(e.target.value)}
-                 placeholder="Google Font (e.g. Lobster)"
-                 className="flex-1 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs focus:ring-2 focus:ring-purple-500 outline-none"
-               />
-               <button 
-                 onClick={handleAddCustomFont}
-                 className="bg-purple-100 text-purple-600 p-2 rounded-xl hover:bg-purple-200 transition-colors"
-                 title="Добавить шрифт"
-               >
-                 <Plus size={16} />
-               </button>
-             </div>
          </div>
       </div>
-
-      <div className="space-y-4">
-         <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-500 ml-1">Цвет Заголовка</label>
-            <div className="grid grid-cols-8 gap-2">
-               <button 
-                  onClick={() => updateGlobalStyle({ titleColor: '' })}
-                  className={`w-8 h-8 rounded-full border border-slate-200 bg-transparent flex items-center justify-center text-[10px] text-slate-400 hover:bg-slate-50 ${!currentStyle.titleColor ? 'ring-2 ring-purple-500' : ''}`}
-                  title="Сброс"
-               >
-                  A
-               </button>
-               {COLOR_PRESETS.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => updateGlobalStyle({ titleColor: color })}
-                    className={`w-8 h-8 rounded-full border border-black/5 shadow-sm transition-transform hover:scale-110 ${currentStyle.titleColor === color ? 'ring-2 ring-purple-500 ring-offset-1' : ''}`}
-                    style={{ backgroundColor: color }}
-                  />
-               ))}
-            </div>
-         </div>
-         <div className="space-y-2">
-            <label className="text-xs font-semibold text-slate-500 ml-1">Цвет Текста</label>
-            <div className="grid grid-cols-8 gap-2">
-               <button 
-                  onClick={() => updateGlobalStyle({ textColor: '' })}
-                  className={`w-8 h-8 rounded-full border border-slate-200 bg-transparent flex items-center justify-center text-[10px] text-slate-400 hover:bg-slate-50 ${!currentStyle.textColor ? 'ring-2 ring-purple-500' : ''}`}
-                  title="Сброс"
-               >
-                  A
-               </button>
-               {COLOR_PRESETS.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => updateGlobalStyle({ textColor: color })}
-                    className={`w-8 h-8 rounded-full border border-black/5 shadow-sm transition-transform hover:scale-110 ${currentStyle.textColor === color ? 'ring-2 ring-purple-500 ring-offset-1' : ''}`}
-                    style={{ backgroundColor: color }}
-                  />
-               ))}
-            </div>
-         </div>
-      </div>
-
-      <div className="space-y-3 pt-2">
-         <div className="flex justify-between items-end mb-2">
-            <div className="flex items-center gap-2">
-              <Layers size={14} className="text-slate-400" />
-              <label className="text-xs font-semibold text-slate-500">Затемнение фото</label>
-            </div>
-            <span className="text-xs font-mono text-slate-400">{Math.round((currentStyle.overlayOpacity || 0.2) * 100)}%</span>
-         </div>
-         <input 
-           type="range" min="0" max="0.9" step="0.05"
-           value={currentStyle.overlayOpacity !== undefined ? currentStyle.overlayOpacity : 0.2}
-           onChange={(e) => updateGlobalStyle({ overlayOpacity: parseFloat(e.target.value) })}
-           className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600"
-         />
-      </div>
+      
+      {/* Spacer for bottom sheet usage */}
+      <div className="h-12"></div>
     </section>
   )};
+
+  const renderStructureEditor = () => (
+    <div className="space-y-4 p-4 pb-24">
+        <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-800">Структура карусели</h2>
+            <div className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">
+                {slides.length} слайдов
+            </div>
+        </div>
+        
+        {slides.map((slide, idx) => (
+            <div key={idx} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative group">
+                <div className="absolute top-3 right-3 text-[10px] font-bold text-slate-300">
+                    {idx + 1 < 10 ? `0${idx + 1}` : idx + 1}
+                </div>
+                
+                <div className="space-y-3">
+                    <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Заголовок</label>
+                        <input 
+                            type="text" 
+                            value={slide.title}
+                            onChange={(e) => handleStructureChange(idx, 'title', e.target.value)}
+                            className="w-full font-bold text-slate-800 border-b border-slate-200 focus:border-purple-500 outline-none py-1 bg-transparent"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Контент</label>
+                        <textarea 
+                            value={slide.content}
+                            onChange={(e) => handleStructureChange(idx, 'content', e.target.value)}
+                            rows={3}
+                            className="w-full text-sm text-slate-600 border border-slate-100 bg-slate-50 rounded-lg p-2 focus:ring-1 focus:ring-purple-500 outline-none resize-none"
+                        />
+                    </div>
+                    {slide.highlight && (
+                        <div>
+                             <label className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1 block flex items-center gap-1"><Zap size={10} /> Акцент</label>
+                             <input 
+                                type="text" 
+                                value={slide.highlight}
+                                onChange={(e) => handleStructureChange(idx, 'highlight', e.target.value)}
+                                className="w-full text-xs text-purple-700 font-medium bg-purple-50 rounded px-2 py-1 outline-none"
+                            />
+                        </div>
+                    )}
+                </div>
+            </div>
+        ))}
+        
+        <button className="w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 rounded-xl font-bold flex items-center justify-center gap-2 hover:border-purple-300 hover:text-purple-500 transition-colors">
+            <Plus size={18} />
+            Добавить слайд
+        </button>
+    </div>
+  );
 
   const renderLibrary = () => (
     <section className="space-y-4">
@@ -916,79 +921,121 @@ const App: React.FC = () => {
       </div>
 
       {/* =========================================================================
-          MOBILE LAYOUT - iOS APP STYLE
+          MOBILE LAYOUT - iOS APP STYLE (IMPROVED UX)
           ========================================================================= */}
       <div className="lg:hidden flex flex-col h-full bg-slate-50 overflow-hidden relative">
          
+         {/* Full Screen Loading Overlay */}
+         {isGenerating && (
+            <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
+               <div className="relative mb-6">
+                  <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl animate-pulse"></div>
+                  <Loader2 className="w-12 h-12 text-purple-600 animate-spin relative z-10" />
+               </div>
+               <h3 className="text-xl font-bold text-slate-800 mb-2">Генерирую контент...</h3>
+               <p className="text-sm text-slate-500 max-w-[250px] text-center">Создаю заголовки и структуру для вашей карусели</p>
+            </div>
+         )}
+
          {/* iOS Header */}
-         <div className="pt-safe px-4 pb-2 bg-white/80 backdrop-blur-xl sticky top-0 z-20 border-b border-black/5 flex justify-between items-center">
+         <div className="pt-safe px-4 pb-2 bg-white/80 backdrop-blur-xl sticky top-0 z-20 border-b border-black/5 flex justify-between items-center transition-all">
             <div className="flex items-center gap-1.5 pt-2">
                <Sparkles className="text-purple-600" size={18} />
                <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">CarouselKit</span>
             </div>
-            <div className="pt-2 flex gap-2">
-               <button onClick={handleExport} className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-700">
-                  <Share size={16} />
-               </button>
+            {/* View Toggle */}
+            <div className="pt-2 flex gap-1 bg-slate-100 p-1 rounded-lg">
+                <button 
+                   onClick={() => setMobileViewMode('structure')}
+                   className={`p-1.5 rounded-md transition-all ${mobileViewMode === 'structure' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
+                >
+                    <List size={16} />
+                </button>
+                <button 
+                   onClick={() => setMobileViewMode('visual')}
+                   className={`p-1.5 rounded-md transition-all ${mobileViewMode === 'visual' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
+                >
+                    <Grid2X2 size={16} />
+                </button>
             </div>
          </div>
 
-         {/* Mobile Preview Area (Scrollable Feed) */}
-         <div 
-           className="flex-1 overflow-y-auto overflow-x-hidden relative"
-           onTouchStart={onTouchStart}
-           onTouchMove={onTouchMove}
-           onTouchEnd={onTouchEnd}
-         >  
-           {/* Background Mesh */}
-           <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 z-0"></div>
+         {/* Mobile Main Content Area */}
+         {mobileViewMode === 'structure' ? (
+             <div className="flex-1 overflow-y-auto bg-slate-50">
+                 {renderStructureEditor()}
+             </div>
+         ) : (
+             <div 
+                className={`flex-1 overflow-hidden relative flex flex-col transition-all duration-500 ease-in-out`}
+                onTouchStart={onTouchStart}
+                onTouchMove={onTouchMove}
+                onTouchEnd={onTouchEnd}
+             >  
+                {/* Background Mesh */}
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 z-0 pointer-events-none"></div>
 
-           <div className="relative z-10 pb-32">
-              <div className="py-4 flex justify-center">
-                 <div className="w-full max-w-[400px]">
-                    <PhoneFrame username={username} isDark={true} viewMode="mobile">
-                       {renderCurrentSlide(true)}
-                    </PhoneFrame>
-                 </div>
-              </div>
-
-              {/* Slide Indicators */}
-              <div className="flex justify-center gap-1.5 pb-6">
-                 {slides.map((_, idx) => (
+                {/* SLIDE PREVIEW CONTAINER 
+                    Logic: If a drawer is active, translate this container UP and Scale it down 
+                    to fit the remaining top space without covering it.
+                */}
+                <div className={`relative z-10 flex-1 flex flex-col items-center transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+                    activeMobileTab 
+                       ? 'justify-start pt-4 scale-90 -translate-y-4' // Push up state
+                       : 'justify-center pb-24 px-4 pt-4' // Normal centered state
+                }`}>
+                    
+                    {/* Carousel Card Container */}
                     <div 
-                      key={idx}
-                      onClick={() => setActiveSlideIndex(idx)}
-                      className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeSlideIndex ? 'w-4 bg-purple-600' : 'w-1.5 bg-slate-300'}`}
-                    />
-                 ))}
-              </div>
-              
-              <div className="text-center text-xs text-slate-400 font-medium px-10">
-                 Свайпайте влево/вправо для просмотра. <br/> Нажмите на вкладки внизу для редактирования.
-              </div>
-           </div>
-         </div>
+                      className={`w-full max-w-sm aspect-[4/5] shadow-2xl rounded-2xl overflow-hidden ring-1 ring-black/5 relative transition-all duration-300 ${
+                          activeMobileTab ? 'shadow-lg' : 'shadow-2xl'
+                      }`}
+                    >
+                        {renderCurrentSlide(true)}
+                    </div>
+
+                    {/* Slide Indicators - Only show when no drawer is active to save space */}
+                    {!activeMobileTab && (
+                        <div className="flex justify-center gap-1.5 mt-8 animate-in fade-in slide-in-from-bottom-4">
+                            {slides.map((_, idx) => (
+                                <div 
+                                key={idx}
+                                onClick={() => setActiveSlideIndex(idx)}
+                                className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeSlideIndex ? 'w-4 bg-purple-600 shadow-md' : 'w-1.5 bg-slate-300 hover:bg-slate-400'}`}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+             </div>
+         )}
 
          {/* iOS Tab Bar (Bottom Nav) */}
          <div className="pb-safe bg-white/90 backdrop-blur-xl border-t border-black/5 absolute bottom-0 left-0 right-0 z-30">
             <div className="flex justify-around items-center h-16 px-1">
                <button 
-                 onClick={() => setActiveMobileTab('generator')}
+                 onClick={() => {
+                     setActiveMobileTab(activeMobileTab === 'generator' ? null : 'generator');
+                 }}
                  className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors ${activeMobileTab === 'generator' ? 'text-purple-600' : 'text-slate-400'}`}
                >
-                 <Wand2 size={24} strokeWidth={activeMobileTab === 'generator' ? 2.5 : 2} />
+                 <Sparkles size={24} strokeWidth={activeMobileTab === 'generator' ? 2.5 : 2} />
                  <span className="text-[10px] font-medium">Создать</span>
                </button>
                
-               {/* Center Action Button (Toggle View/Edit) */}
-               <div className="relative -top-5">
-                  <div className="w-14 h-14 bg-gradient-to-tr from-purple-600 to-pink-600 rounded-full shadow-lg shadow-purple-200 flex items-center justify-center text-white border-[3px] border-white">
-                     <span className="font-bold text-lg">{activeSlideIndex + 1}</span>
-                  </div>
-               </div>
+               <button 
+                 onClick={handleExport}
+                 className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors text-slate-400 active:text-slate-600`}
+               >
+                 <Share size={24} strokeWidth={2} />
+                 <span className="text-[10px] font-medium">Экспорт</span>
+               </button>
 
                <button 
-                 onClick={() => setActiveMobileTab('design')}
+                 onClick={() => {
+                     setMobileViewMode('visual'); // Switch to visual when opening design
+                     setActiveMobileTab(activeMobileTab === 'design' ? null : 'design');
+                 }}
                  className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors ${activeMobileTab === 'design' ? 'text-purple-600' : 'text-slate-400'}`}
                >
                  <Palette size={24} strokeWidth={activeMobileTab === 'design' ? 2.5 : 2} />
@@ -997,41 +1044,32 @@ const App: React.FC = () => {
             </div>
          </div>
 
-         {/* iOS Modal Sheets (Drawers) */}
+         {/* NON-BLOCKING HALF-SCREEN DRAWERS */}
+         {/* Instead of a modal that covers everything, we use a fixed bottom sheet that pushes the content up logic above */}
          {activeMobileTab && (
-           <div className="fixed inset-0 z-50 flex items-end justify-center">
-             {/* Backdrop */}
-             <div 
-               className="absolute inset-0 bg-black/20 backdrop-blur-[2px] transition-opacity"
-               onClick={() => setActiveMobileTab(null)}
-             ></div>
-
-             {/* Sheet */}
-             <div 
-               className="bg-white w-full rounded-t-[2rem] shadow-2xl relative z-10 animate-in slide-in-from-bottom duration-300 pb-safe max-h-[85vh] flex flex-col"
-               style={{ willChange: 'transform' }}
-             >
+           <div 
+             className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] border-t border-slate-100 flex flex-col h-[45vh] pb-safe animate-in slide-in-from-bottom duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+           >
                 {/* Handle Bar */}
                 <div className="w-full flex justify-center pt-3 pb-2 cursor-grab" onClick={() => setActiveMobileTab(null)}>
                    <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
                 </div>
 
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 pb-4 border-b border-slate-50">
-                   <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-                     {activeMobileTab === 'generator' ? 'Генератор' : 'Дизайн'}
+                <div className="flex items-center justify-between px-6 pb-2 border-b border-slate-50">
+                   <h2 className="text-sm font-bold text-slate-800 tracking-tight uppercase">
+                     {activeMobileTab === 'generator' ? 'Генератор' : 'Настройки Дизайна'}
                    </h2>
-                   <button onClick={() => setActiveMobileTab(null)} className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200">
-                     <X size={16} />
+                   <button onClick={() => setActiveMobileTab(null)} className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200">
+                     <X size={14} />
                    </button>
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 pb-12">
+                <div className="flex-1 overflow-y-auto p-6 pb-24">
                    {activeMobileTab === 'generator' && renderGeneratorControls()}
                    {activeMobileTab === 'design' && renderDesignControls()}
                 </div>
-             </div>
            </div>
          )}
       </div>

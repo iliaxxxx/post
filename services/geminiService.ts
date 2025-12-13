@@ -1,14 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SlideData, Tone } from "../types";
 
-// Helper to safely get API Key without crashing if process is undefined
+// Helper to safely get API Key
+// UPDATED: Now supports bundler string replacement patterns safely
 const getApiKey = (): string => {
   try {
-    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      return process.env.API_KEY;
+    // Direct access allows bundlers (like Vite) to replace 'process.env.API_KEY' with the actual string literal.
+    // We wrap it in try-catch to handle runtime environments where process might not be defined.
+    const key = process.env.API_KEY;
+    if (key && typeof key === 'string' && key.length > 0) {
+      return key;
     }
   } catch (e) {
-    // Ignore error if process is not defined
+    // Ignore ReferenceError if process is not defined
   }
   return '';
 };
@@ -31,7 +35,7 @@ export const generateCarouselContent = async (
 ): Promise<SlideData[]> => {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error("API Key не найден. Проверьте настройки окружения (.env).");
+    throw new Error("API Key не найден. Проверьте настройки окружения (.env) или переменные деплоя.");
   }
 
   try {
@@ -94,10 +98,9 @@ export const generateCarouselContent = async (
 
   } catch (error: any) {
     console.error("Gemini API Error:", error);
-    // Pass the actual error message if possible
     const msg = error.message || "Неизвестная ошибка";
-    if (msg.includes("API key not valid")) {
-       throw new Error("Неверный API ключ. Проверьте настройки.");
+    if (msg.includes("API key not valid") || msg.includes("400")) {
+       throw new Error("Неверный API ключ. Проверьте настройки проекта (Google AI Studio).");
     }
     throw new Error(`Ошибка генерации: ${msg}`);
   }
