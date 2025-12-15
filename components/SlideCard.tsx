@@ -265,7 +265,7 @@ const getOverrides = (customStyle?: SlideStyle) => {
 const AuroraCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const isCover = data.number === 1;
-  const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : (isCover ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl');
+  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : (isCover ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl');
 
   // Exact reproduction of the requested "Aurora" texture
   const auroraTexture = `
@@ -383,8 +383,8 @@ const AuroraCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, username
 
 const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
-  const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-2xl sm:text-3xl';
-  const contentSize = customStyle ? getSizeClass(customStyle.fontSize, 'content') : 'text-sm sm:text-base';
+  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : 'text-2xl sm:text-3xl';
+  const contentSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'content') : 'text-sm sm:text-base';
   const bgConfig = getBackgroundConfig(bgImage, overrides, true); // true = isDark
   
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.4 : 0);
@@ -456,7 +456,7 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
 
 const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
-  const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-5xl';
+  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-5xl';
   const bgConfig = getBackgroundConfig(bgImage, overrides, false); // false = not dark
   
   if (!bgConfig.textAlign) bgConfig.textAlign = 'center';
@@ -506,7 +506,7 @@ const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlid
 
 const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
-  const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-4xl';
+  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-4xl';
   const bgConfig = getBackgroundConfig(bgImage, overrides, true);
 
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.7 : 0);
@@ -550,7 +550,7 @@ const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlid
 
 const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, isDark, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
-  const titleSize = customStyle ? getSizeClass(customStyle.fontSize, 'title') : (isFirst ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl');
+  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : (isFirst ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl');
   const bgConfig = getBackgroundConfig(bgImage, overrides, isDark);
 
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? (isDark ? 0.7 : 0.2) : 0);

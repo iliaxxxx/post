@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateCarouselContent, regenerateSlideContent, generateSlideImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
+import { ThemePreview } from './components/ThemePreview';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap, Magnet } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -28,16 +29,6 @@ const DEMO_SLIDES: SlideData[] = [
     content: "Смотрите превью в реальном времени на мокапе iPhone. Кликни на текст, чтобы изменить его.",
     cta: "Попробуй сейчас"
   }
-];
-
-// Content Ideas
-const QUICK_TOPICS = [
-  "5 ошибок новичка в...",
-  "Как заработать на...",
-  "Секрет продуктивности",
-  "Тренды 2025 года",
-  "Чек-лист: Готовность к...",
-  "История моего провала"
 ];
 
 const INITIAL_FONTS = [
@@ -105,9 +96,18 @@ const THEME_PRESETS = [
   { id: Theme.RETRO_PAPER, label: 'Retro', color: 'bg-[#F5F5F0]', textColor: 'text-black' },
 ];
 
+const LEAD_MAGNETS = [
+  { id: 'subscribe', label: 'Подпишись на блог', prompt: 'Последний слайд: Сделай явный призыв ПОДПИСАТЬСЯ на блог. Объясни ценность подписки.' },
+  { id: 'consultation', label: 'Запись на консультацию', prompt: 'Последний слайд: Продай идею записаться на КОНСУЛЬТАЦИЮ. Прямой призыв: "Запишись в Директ".' },
+  { id: 'dm_word', label: 'Слово в Директ (Воронка)', prompt: 'Последний слайд: Призыв написать КОДОВОЕ СЛОВО в Директ для получения бонуса/гайда. Придумай это слово.' },
+  { id: 'link_bio', label: 'Ссылка в шапке', prompt: 'Последний слайд: Отправь пользователя по ССЫЛКЕ В ШАПКЕ профиля за подробностями или продуктом.' },
+  { id: 'save', label: 'Сохрани пост', prompt: 'Последний слайд: Убеди пользователя СОХРАНИТЬ этот пост, чтобы не потерять пользу.' },
+  { id: 'comment', label: 'Оставь комментарий', prompt: 'Последний слайд: Задай провокационный вопрос, чтобы спровоцировать ОБСУЖДЕНИЕ в комментариях.' },
+];
+
 type MobileTab = 'generator' | 'design' | 'library' | null;
 type SidebarTab = 'editor' | 'library';
-type ViewMode = 'visual' | 'structure'; // New state for switching views
+type ViewMode = 'visual' | 'structure';
 
 const App: React.FC = () => {
   // --- STATE ---
@@ -119,6 +119,7 @@ const App: React.FC = () => {
   });
 
   const [toneValue, setToneValue] = useState<number>(0);
+  const [leadMagnetId, setLeadMagnetId] = useState<string>(LEAD_MAGNETS[0].id);
   const [username, setUsername] = useState<string>('@my_blog');
   const [slides, setSlides] = useState<SlideData[]>(DEMO_SLIDES);
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
@@ -187,11 +188,12 @@ const App: React.FC = () => {
     setIsGenerating(true);
     setError(null);
     setActiveMobileTab(null);
-    setMobileViewMode('structure'); // Switch to structure view after generation
+    setMobileViewMode('structure');
     setActiveSidebarTab('editor');
     try {
       const tone = mapSliderToTone(toneValue);
-      const generatedSlides = await generateCarouselContent(config.topic, config.slideCount, tone);
+      const selectedMagnet = LEAD_MAGNETS.find(m => m.id === leadMagnetId)?.prompt || "Подпишись";
+      const generatedSlides = await generateCarouselContent(config.topic, config.slideCount, tone, selectedMagnet);
       setSlides(generatedSlides);
       setActiveSlideIndex(0);
       setSlideStyles({});
@@ -237,7 +239,7 @@ const App: React.FC = () => {
               setSlideStyles(prev => ({
                 ...prev,
                 [targetSlideNumber]: {
-                  ...(prev[targetSlideNumber] || DEFAULT_STYLE),
+                  ...(prev[targetSlideNumber] || {}),
                   backgroundType: 'image',
                   backgroundValue: bgImage
                 }
@@ -264,22 +266,12 @@ const App: React.FC = () => {
     });
   };
 
-  const handleStructureChange = (index: number, field: keyof SlideData, value: string) => {
-    setSlides(prev => {
-        const newSlides = [...prev];
-        if (newSlides[index]) {
-            newSlides[index] = { ...newSlides[index], [field]: value };
-        }
-        return newSlides;
-    });
-  };
-
   const updateSlideStyle = (updates: Partial<SlideStyle>) => {
     const slideNum = slides[activeSlideIndex]?.number;
     if (!slideNum) return;
     setSlideStyles(prev => ({
       ...prev,
-      [slideNum]: { ...(prev[slideNum] || DEFAULT_STYLE), ...updates }
+      [slideNum]: { ...(prev[slideNum] || {}), ...updates }
     }));
   };
 
@@ -288,7 +280,7 @@ const App: React.FC = () => {
       const newStyles = { ...prev };
       slides.forEach(slide => {
         newStyles[slide.number] = {
-          ...(newStyles[slide.number] || DEFAULT_STYLE),
+          ...(newStyles[slide.number] || {}),
           ...updates
         };
       });
@@ -306,17 +298,13 @@ const App: React.FC = () => {
       const newStyles = { ...prev };
       slides.forEach(s => {
         newStyles[s.number] = {
-          ...(newStyles[s.number] || DEFAULT_STYLE),
+          ...(newStyles[s.number] || {}),
           backgroundType: type || 'image',
           backgroundValue: currentBg
         };
       });
       return newStyles;
     });
-  };
-
-  const handleRemoveBg = () => {
-    updateSlideStyle({ backgroundType: 'solid', backgroundValue: '' });
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -341,7 +329,7 @@ const App: React.FC = () => {
           if (targetIndex >= slides.length) return;
           const slideNum = slides[targetIndex].number;
           newStyles[slideNum] = {
-            ...(newStyles[slideNum] || DEFAULT_STYLE),
+            ...(newStyles[slideNum] || {}),
             backgroundType: 'image',
             backgroundValue: imgData
           };
@@ -459,8 +447,7 @@ const App: React.FC = () => {
 
   const toneInfo = getToneLabel(toneValue);
   const currentSlideData = slides[activeSlideIndex];
-  const currentStyle = slideStyles[currentSlideData.number] || DEFAULT_STYLE;
-
+  
   // --- HELPER FOR RENDERING SLIDE ---
   const renderCurrentSlide = (isMobile: boolean) => (
       <SlideCard 
@@ -475,12 +462,10 @@ const App: React.FC = () => {
         onGenerateBg={handleGenerateAIBackground}
         isRegenerating={loadingSlides[currentSlideData.number]}
         isGeneratingBg={generatingBgSlides[currentSlideData.number]}
-        customStyle={currentStyle}
+        customStyle={slideStyles[currentSlideData.number]}
         className="w-full h-full"
       />
   );
-
-  // --- RENDER SECTIONS ---
 
   const renderGeneratorControls = () => (
     <section className="space-y-5">
@@ -512,18 +497,6 @@ const App: React.FC = () => {
             placeholder="О чем будет пост?"
             className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 transition-all font-medium placeholder:text-slate-400"
           />
-          {/* Quick Topics Chips */}
-          <div className="flex flex-wrap gap-2">
-             {QUICK_TOPICS.map(t => (
-                <button
-                   key={t}
-                   onClick={() => setConfig(prev => ({ ...prev, topic: t }))}
-                   className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-[11px] font-medium text-slate-600 hover:border-purple-300 hover:text-purple-600 hover:bg-purple-50 transition-all shadow-sm"
-                >
-                   {t}
-                </button>
-             ))}
-          </div>
         </div>
       </div>
 
@@ -541,6 +514,25 @@ const App: React.FC = () => {
           className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
         />
         <p className="text-[10px] text-slate-400 text-center italic">{toneInfo.desc}</p>
+      </div>
+      
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+           <Magnet size={14} className="text-slate-400" />
+           <label className="text-xs font-semibold text-slate-500">Лид-магнит (Призыв в конце)</label>
+        </div>
+        <select 
+            value={leadMagnetId}
+            onChange={(e) => setLeadMagnetId(e.target.value)}
+            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
+        >
+            {LEAD_MAGNETS.map(m => (
+                <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+        </select>
+        <p className="text-[10px] text-slate-400 ml-1">
+            {LEAD_MAGNETS.find(m => m.id === leadMagnetId)?.prompt.split(':')[1] || LEAD_MAGNETS.find(m => m.id === leadMagnetId)?.prompt}
+        </p>
       </div>
 
       <div className="space-y-3">
@@ -586,507 +578,276 @@ const App: React.FC = () => {
     </section>
   );
 
-  const renderDesignControls = () => {
-    const currentTitleFont = currentStyle.titleFontFamily || 'Inter';
-    const recommendedBodyFont = FONT_PAIRINGS[currentTitleFont];
-
-    return (
-    <section className="space-y-6">
-      
-      {/* Template Selector */}
-      <div className="space-y-2">
-         <div className="flex items-center gap-2">
-            <LayoutTemplate size={14} className="text-slate-400" />
-            <label className="text-xs font-semibold text-slate-500">Шаблоны</label>
-         </div>
-         <div className="grid grid-cols-3 gap-2">
-           {THEME_PRESETS.map((t) => (
-             <button
-                key={t.id}
-                onClick={() => {
-                  setConfig(prev => ({ ...prev, theme: t.id }));
-                  updateGlobalStyle({ titleColor: '', textColor: '' }); 
-                }}
-                className={`relative h-16 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all overflow-hidden ${config.theme === t.id ? 'ring-2 ring-purple-500 ring-offset-1 border-transparent' : 'border-slate-200 hover:border-purple-300'}`}
-             >
-                <div className={`absolute inset-0 opacity-20 ${t.color}`}></div>
-                <div className={`z-10 w-6 h-6 rounded-full ${t.color} shadow-sm border border-white/20`}></div>
-                <span className="z-10 text-[10px] font-bold text-slate-700">{t.label}</span>
-             </button>
-           ))}
-         </div>
+  const renderDesignControls = () => (
+    <div className="space-y-6">
+      <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
+        <Palette size={16} className="text-purple-500" />
+        Дизайн
       </div>
 
-      <div className="h-px bg-slate-100 w-full"></div>
+      {/* Themes */}
+      <div className="space-y-3">
+        <label className="text-xs font-semibold text-slate-500 ml-1">Тема оформления</label>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {THEME_PRESETS.map(t => (
+            <ThemePreview
+              key={t.id}
+              theme={t.id}
+              isSelected={config.theme === t.id}
+              onClick={() => {
+                setConfig(prev => ({ ...prev, theme: t.id }));
+                setSlideStyles({});
+              }}
+            />
+          ))}
+        </div>
+      </div>
 
-      <div className="space-y-2">
-         <div className="flex items-center gap-2">
-            <AtSign size={14} className="text-slate-400" />
-            <label className="text-xs font-semibold text-slate-500">Никнейм</label>
+      {/* Fonts */}
+      <div className="space-y-3">
+        <label className="text-xs font-semibold text-slate-500 ml-1">Шрифты</label>
+        
+        <div className="space-y-2">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Заголовки</span>
+          <select 
+            value={slideStyles[slides[activeSlideIndex]?.number]?.titleFontFamily || ''}
+            onChange={(e) => updateGlobalStyle({ titleFontFamily: e.target.value })}
+            className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">По умолчанию</option>
+            {availableFonts.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Основной текст</span>
+          <select 
+            value={slideStyles[slides[activeSlideIndex]?.number]?.bodyFontFamily || ''}
+            onChange={(e) => updateGlobalStyle({ bodyFontFamily: e.target.value })}
+            className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm"
+          >
+            <option value="">По умолчанию</option>
+            {availableFonts.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
+          </select>
+        </div>
+
+         <div className="flex gap-2">
+            <input 
+              type="text" 
+              value={customFontInput}
+              onChange={(e) => setCustomFontInput(e.target.value)}
+              placeholder="Google Font Name"
+              className="flex-1 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm"
+            />
+            <button onClick={handleAddCustomFont} className="bg-slate-200 p-2 rounded-lg hover:bg-slate-300">
+               <Plus size={16} />
+            </button>
+         </div>
+      </div>
+      
+      {/* Backgrounds */}
+      <div className="space-y-3">
+         <label className="text-xs font-semibold text-slate-500 ml-1">Фон слайда</label>
+         
+         <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-100 rounded-lg text-xs font-medium hover:bg-slate-200">
+               <ImagePlus size={14} />
+               Загрузить
+            </button>
+            <button onClick={handleGenerateAIBackground} className="flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100">
+               <Wand2 size={14} />
+               AI Фон
+            </button>
          </div>
          <input 
-           type="text" 
-           value={username}
-           onChange={(e) => setUsername(e.target.value)}
-           className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
-           placeholder="@username"
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept="image/*"
+            onChange={handleImageUpload}
+            multiple
          />
+         
+         {/* Gradients */}
+          <div className="grid grid-cols-5 gap-2 mt-2">
+            {GRADIENT_PRESETS.map((g, i) => (
+               <button 
+                 key={i}
+                 className="w-full aspect-square rounded-full border border-black/5 hover:scale-110 transition-transform"
+                 style={{ background: g.value }}
+                 onClick={() => updateSlideStyle({ backgroundType: 'gradient', backgroundValue: g.value })}
+                 title={g.name}
+               />
+            ))}
+          </div>
+
+          <button onClick={handleApplyBgToAll} className="w-full py-2 text-xs text-slate-500 hover:text-slate-800 underline">
+             Применить этот фон ко всем слайдам
+          </button>
       </div>
-
-      <div className="space-y-2">
-         <div className="flex items-center gap-2">
-            <ImagePlus size={14} className="text-slate-400" />
-            <label className="text-xs font-semibold text-slate-500">Готовые фоны</label>
-         </div>
-         <div className="grid grid-cols-4 gap-2">
-           {GRADIENT_PRESETS.map((preset) => (
-             <button
-               key={preset.name}
-               onClick={() => updateSlideStyle({ backgroundType: 'gradient', backgroundValue: preset.value })}
-               className={`w-full aspect-square rounded-lg shadow-sm hover:scale-105 transition-transform border border-black/5 ${currentStyle.backgroundValue === preset.value ? 'ring-2 ring-purple-500' : ''}`}
-               style={{ background: preset.value }}
-               title={preset.name}
-             />
-           ))}
-         </div>
-
-         {(currentStyle.backgroundType === 'image' || currentStyle.backgroundType === 'gradient') && (
-             <div className="grid grid-cols-2 gap-2 mt-2">
-                 <button
-                     onClick={handleApplyBgToAll}
-                     className="py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-bold hover:bg-blue-100 transition-colors flex items-center justify-center gap-1"
-                 >
-                     <Copy size={12} />
-                     Ко всем
-                 </button>
-                 <button
-                     onClick={handleRemoveBg}
-                     className="py-2 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
-                 >
-                     <Trash2 size={12} />
-                     Убрать
-                 </button>
-             </div>
-         )}
-      </div>
-
-      <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100">
-         <div className="flex items-center gap-2">
-            <Lightbulb size={16} className="text-indigo-500" />
-            <label className="text-xs font-bold text-slate-700">Неоновое свечение</label>
-         </div>
-         <button 
-           onClick={() => updateGlobalStyle({ titleGlow: !currentStyle.titleGlow })}
-           className={`w-10 h-5 rounded-full relative transition-colors duration-200 ${currentStyle.titleGlow ? 'bg-indigo-500' : 'bg-slate-300'}`}
-         >
-           <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${currentStyle.titleGlow ? 'translate-x-5' : 'translate-x-0'}`} />
-         </button>
-      </div>
-
-      <div className="space-y-2">
-         <div className="flex items-center gap-2">
-            <Type size={14} className="text-slate-400" />
-            <label className="text-xs font-semibold text-slate-500">Размер текста</label>
-         </div>
-         <div className="grid grid-cols-4 gap-2 bg-slate-100 p-1 rounded-xl">
-             {(['small', 'medium', 'large', 'extra'] as const).map((size) => (
-               <button
-                 key={size}
-                 onClick={() => updateGlobalStyle({ fontSize: size })}
-                 className={`py-2 text-[10px] sm:text-xs font-bold rounded-lg transition-all uppercase ${
-                   (currentStyle.fontSize || 'medium') === size 
-                     ? 'bg-white text-purple-600 shadow-sm' 
-                     : 'text-slate-500 hover:text-slate-700'
-                 }`}
-               >
-                 {size === 'small' ? 'S' : size === 'medium' ? 'M' : size === 'large' ? 'L' : 'XL'}
-               </button>
-             ))}
-         </div>
-      </div>
-
-      <div className="space-y-4">
-         <div className="flex flex-col gap-3">
-             <div className="space-y-1">
-                 <label className="text-xs font-semibold text-slate-500 ml-1">Шрифт заголовка</label>
-                 <select 
-                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
-                   value={currentStyle.titleFontFamily || currentStyle.fontFamily || ''}
-                   onChange={(e) => updateGlobalStyle({ titleFontFamily: e.target.value })}
-                 >
-                   <option value="">По умолчанию</option>
-                   {availableFonts.map(f => (
-                     <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>{f.label}</option>
-                   ))}
-                 </select>
-             </div>
-
-             <div className="space-y-1">
-                 <label className="text-xs font-semibold text-slate-500 ml-1">Шрифт текста</label>
-                 <select 
-                   className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
-                   value={currentStyle.bodyFontFamily || currentStyle.fontFamily || ''}
-                   onChange={(e) => updateGlobalStyle({ bodyFontFamily: e.target.value })}
-                 >
-                   <option value="">По умолчанию</option>
-                   {availableFonts.map(f => (
-                     <option key={f.name} value={f.name} style={{ fontFamily: f.name }}>
-                       {f.label} {f.name === recommendedBodyFont ? '✨' : ''}
-                     </option>
-                   ))}
-                 </select>
-             </div>
-         </div>
-      </div>
-      
-      {/* Spacer for bottom sheet usage */}
-      <div className="h-12"></div>
-    </section>
-  )};
-
-  const renderStructureEditor = () => (
-    <div className="space-y-4 p-4 pb-24">
-        <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-slate-800">Структура карусели</h2>
-            <div className="text-xs bg-slate-100 text-slate-500 px-2 py-1 rounded-md font-medium">
-                {slides.length} слайдов
-            </div>
-        </div>
-        
-        {slides.map((slide, idx) => (
-            <div key={idx} className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm relative group">
-                <div className="absolute top-3 right-3 text-[10px] font-bold text-slate-300">
-                    {idx + 1 < 10 ? `0${idx + 1}` : idx + 1}
-                </div>
-                
-                <div className="space-y-3">
-                    <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Заголовок</label>
-                        <input 
-                            type="text" 
-                            value={slide.title}
-                            onChange={(e) => handleStructureChange(idx, 'title', e.target.value)}
-                            className="w-full font-bold text-slate-800 border-b border-slate-200 focus:border-purple-500 outline-none py-1 bg-transparent"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Контент</label>
-                        <textarea 
-                            value={slide.content}
-                            onChange={(e) => handleStructureChange(idx, 'content', e.target.value)}
-                            rows={3}
-                            className="w-full text-sm text-slate-600 border border-slate-100 bg-slate-50 rounded-lg p-2 focus:ring-1 focus:ring-purple-500 outline-none resize-none"
-                        />
-                    </div>
-                    {slide.highlight && (
-                        <div>
-                             <label className="text-[10px] font-bold text-purple-400 uppercase tracking-wider mb-1 block flex items-center gap-1"><Zap size={10} /> Акцент</label>
-                             <input 
-                                type="text" 
-                                value={slide.highlight}
-                                onChange={(e) => handleStructureChange(idx, 'highlight', e.target.value)}
-                                className="w-full text-xs text-purple-700 font-medium bg-purple-50 rounded px-2 py-1 outline-none"
-                            />
-                        </div>
-                    )}
-                </div>
-            </div>
-        ))}
-        
-        <button className="w-full py-3 border-2 border-dashed border-slate-200 text-slate-400 rounded-xl font-bold flex items-center justify-center gap-2 hover:border-purple-300 hover:text-purple-500 transition-colors">
-            <Plus size={18} />
-            Добавить слайд
-        </button>
     </div>
   );
 
   const renderLibrary = () => (
-    <section className="space-y-4">
-       <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider mb-2">
-        <Library size={16} className="text-blue-500" />
-        Коллекция ({savedCarousels.length})
-      </div>
-      
-      {savedCarousels.length === 0 ? (
-        <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-           <Library size={32} className="mx-auto text-slate-300 mb-2" />
-           <p className="text-sm text-slate-400 font-medium">Пока ничего не сохранено</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {savedCarousels.map((item) => (
-             <div key={item.id} onClick={() => handleLoadFromLibrary(item)} className="group bg-white border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md hover:border-blue-200 cursor-pointer transition-all">
-                <div className="flex justify-between items-start mb-1">
-                   <h3 className="font-bold text-slate-700 text-sm line-clamp-2">{item.topic || 'Без названия'}</h3>
-                   <button 
-                     onClick={(e) => handleDeleteFromLibrary(item.id, e)}
-                     className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                   >
-                     <Trash2 size={14} />
-                   </button>
-                </div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-400">
-                   <span className="flex items-center gap-1 bg-slate-50 px-1.5 py-0.5 rounded">
-                     <Layers size={10} /> {item.slides.length}
-                   </span>
-                   <span className="flex items-center gap-1">
-                     <Clock size={10} /> {new Date(item.timestamp).toLocaleDateString()}
-                   </span>
-                </div>
-             </div>
-          ))}
-        </div>
-      )}
-    </section>
+     <div className="space-y-6">
+       <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
+         <Library size={16} className="text-pink-500" />
+         Мои карусели
+       </div>
+       
+       {savedCarousels.length === 0 ? (
+         <div className="text-center py-10 text-slate-400 text-sm">
+            Нет сохраненных каруселей
+         </div>
+       ) : (
+         <div className="space-y-3">
+            {savedCarousels.map(item => (
+               <div key={item.id} className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => handleLoadFromLibrary(item)}>
+                  <div className="flex justify-between items-start">
+                     <div>
+                        <div className="font-bold text-sm text-slate-800 mb-1">{item.topic}</div>
+                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                           <span>{new Date(item.timestamp).toLocaleDateString()}</span>
+                           <span>•</span>
+                           <span>{item.slides.length} слайдов</span>
+                        </div>
+                     </div>
+                     <button onClick={(e) => handleDeleteFromLibrary(item.id, e)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                        <Trash2 size={14} />
+                     </button>
+                  </div>
+               </div>
+            ))}
+         </div>
+       )}
+     </div>
   );
 
+  // Main Render
   return (
-    <div className="flex flex-col lg:flex-row h-[100dvh] w-full bg-[#f8fafc] text-slate-800 font-sans overflow-hidden">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-purple-100 selection:text-purple-900">
       
-      {/* --- DESKTOP LEFT SIDEBAR (Unchanged) --- */}
-      <div className="hidden lg:flex w-[420px] h-full bg-white/80 backdrop-blur-2xl border-r border-white/20 flex-col shadow-2xl z-20 relative">
-        <div className="p-6 border-b border-gray-100 bg-white/50">
-           <div className="flex items-center gap-2 mb-1">
-             <div className="w-8 h-8 bg-gradient-to-tr from-purple-500 to-pink-500 rounded-lg flex items-center justify-center text-white shadow-lg">
-               <Sparkles size={18} fill="currentColor" />
-             </div>
-             <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">
-               CarouselKit
-             </h1>
-           </div>
-           <p className="text-xs text-slate-400 font-medium ml-10">AI-Powered Instagram Generator</p>
-        </div>
-        <div className="px-6 pt-4">
-           <div className="flex p-1 bg-slate-100 rounded-xl">
-              <button 
-                onClick={() => setActiveSidebarTab('editor')}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeSidebarTab === 'editor' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Редактор
-              </button>
-              <button 
-                onClick={() => setActiveSidebarTab('library')}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all ${activeSidebarTab === 'library' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-              >
-                Коллекция
-              </button>
-           </div>
-        </div>
-        <div className="flex-1 overflow-y-auto no-scrollbar p-6 space-y-8">
-          {activeSidebarTab === 'editor' ? (
-            <>
-              {renderGeneratorControls()}
-              <div className="h-px bg-slate-100 w-full"></div>
-              {renderDesignControls()}
-              <div className="pt-4 pb-10">
-                 <button 
-                   onClick={handleExport}
-                   className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold shadow-xl hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
-                 >
-                   <Download size={18} />
-                   Экспорт в PNG
-                 </button>
-              </div>
-            </>
-          ) : (
-            renderLibrary()
-          )}
-        </div>
+      {/* Mobile Nav */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 flex justify-around p-3 pb-safe">
+         <button onClick={() => setActiveMobileTab('generator')} className={`flex flex-col items-center gap-1 ${activeMobileTab === 'generator' ? 'text-purple-600' : 'text-slate-400'}`}>
+            <Sparkles size={20} />
+            <span className="text-[10px] font-medium">Создать</span>
+         </button>
+         <button onClick={() => setActiveMobileTab('design')} className={`flex flex-col items-center gap-1 ${activeMobileTab === 'design' ? 'text-purple-600' : 'text-slate-400'}`}>
+            <Palette size={20} />
+            <span className="text-[10px] font-medium">Стиль</span>
+         </button>
+         <button onClick={() => { setActiveMobileTab(null); setMobileViewMode('visual'); }} className={`flex flex-col items-center gap-1 ${activeMobileTab === null ? 'text-purple-600' : 'text-slate-400'}`}>
+            <Eye size={20} />
+            <span className="text-[10px] font-medium">Просмотр</span>
+         </button>
       </div>
 
-      {/* --- DESKTOP PREVIEW AREA (Unchanged) --- */}
-      <div className="hidden lg:flex relative flex-1 h-full flex-col overflow-hidden">
-         <div className="absolute inset-0 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 z-0"></div>
-         <div className="relative z-10 w-full h-full flex items-center justify-center">
-             <div className="relative scale-[0.85] 2xl:scale-100 transition-transform duration-500 origin-center">
-                 <PhoneFrame username={username} isDark={true} viewMode="desktop">
-                   {renderCurrentSlide(false)}
-                 </PhoneFrame>
-                 <button 
-                    onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))}
-                    className="absolute top-1/2 -left-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
-                    disabled={activeSlideIndex === 0}
-                  >
-                    <ChevronLeft size={32} />
-                  </button>
-                  <button 
-                    onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))}
-                    className="absolute top-1/2 -right-24 -translate-y-1/2 w-16 h-16 bg-white/30 backdrop-blur-xl border border-white/40 rounded-full flex items-center justify-center text-slate-700 shadow-xl hover:bg-white hover:scale-110 transition-all disabled:opacity-0 disabled:pointer-events-none"
-                    disabled={activeSlideIndex === slides.length - 1}
-                  >
-                    <ChevronRight size={32} />
-                  </button>
-             </div>
-         </div>
-      </div>
-
-      {/* =========================================================================
-          MOBILE LAYOUT - iOS APP STYLE (IMPROVED UX)
-          ========================================================================= */}
-      <div className="lg:hidden flex flex-col h-full bg-slate-50 overflow-hidden relative">
+      <div className="max-w-[1600px] mx-auto min-h-screen flex">
          
-         {/* Full Screen Loading Overlay */}
-         {isGenerating && (
-            <div className="absolute inset-0 z-50 bg-white/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300">
-               <div className="relative mb-6">
-                  <div className="absolute inset-0 bg-purple-500/20 rounded-full blur-xl animate-pulse"></div>
-                  <Loader2 className="w-12 h-12 text-purple-600 animate-spin relative z-10" />
+         {/* LEFT SIDEBAR (Desktop) */}
+         <div className="hidden lg:flex w-[400px] flex-col border-r border-slate-200 bg-white h-screen sticky top-0">
+            <div className="p-6 border-b border-slate-100">
+               <div className="flex items-center gap-2 font-black text-2xl tracking-tight bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
+                  <Layers size={28} className="text-purple-600" />
+                  CarouselKit
                </div>
-               <h3 className="text-xl font-bold text-slate-800 mb-2">Генерирую контент...</h3>
-               <p className="text-sm text-slate-500 max-w-[250px] text-center">Создаю заголовки и структуру для вашей карусели</p>
             </div>
-         )}
-
-         {/* iOS Header */}
-         <div className="pt-safe px-4 pb-2 bg-white/80 backdrop-blur-xl sticky top-0 z-20 border-b border-black/5 flex justify-between items-center transition-all">
-            <div className="flex items-center gap-1.5 pt-2">
-               <Sparkles className="text-purple-600" size={18} />
-               <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-pink-600">CarouselKit</span>
-            </div>
-            {/* View Toggle */}
-            <div className="pt-2 flex gap-1 bg-slate-100 p-1 rounded-lg">
-                <button 
-                   onClick={() => setMobileViewMode('structure')}
-                   className={`p-1.5 rounded-md transition-all ${mobileViewMode === 'structure' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
-                >
-                    <List size={16} />
-                </button>
-                <button 
-                   onClick={() => setMobileViewMode('visual')}
-                   className={`p-1.5 rounded-md transition-all ${mobileViewMode === 'visual' ? 'bg-white shadow-sm text-slate-800' : 'text-slate-400'}`}
-                >
-                    <Grid2X2 size={16} />
-                </button>
-            </div>
-         </div>
-
-         {/* Mobile Main Content Area */}
-         {mobileViewMode === 'structure' ? (
-             <div className="flex-1 overflow-y-auto bg-slate-50">
-                 {renderStructureEditor()}
-             </div>
-         ) : (
-             <div 
-                className={`flex-1 overflow-hidden relative flex flex-col transition-all duration-500 ease-in-out`}
-                onTouchStart={onTouchStart}
-                onTouchMove={onTouchMove}
-                onTouchEnd={onTouchEnd}
-             >  
-                {/* Background Mesh */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-white to-purple-50/50 z-0 pointer-events-none"></div>
-
-                {/* SLIDE PREVIEW CONTAINER 
-                    Logic: If a drawer is active, translate this container UP and Scale it down 
-                    to fit the remaining top space without covering it.
-                */}
-                <div className={`relative z-10 flex-1 flex flex-col items-center transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-                    activeMobileTab 
-                       ? 'justify-start pt-4 scale-90 -translate-y-4' // Push up state
-                       : 'justify-center pb-20' // Full height view
-                }`}>
-                    
-                    {/* Carousel Card Container - Full Bleed */}
-                    <div 
-                      className={`w-full aspect-[4/5] relative transition-all duration-300 ${
-                          activeMobileTab ? 'shadow-lg rounded-xl overflow-hidden' : 'shadow-none'
-                      }`}
-                    >
-                        {renderCurrentSlide(true)}
-                    </div>
-
-                    {/* Slide Indicators - Only show when no drawer is active to save space */}
-                    {!activeMobileTab && (
-                        <div className="flex justify-center gap-1.5 mt-8 animate-in fade-in slide-in-from-bottom-4">
-                            {slides.map((_, idx) => (
-                                <div 
-                                key={idx}
-                                onClick={() => setActiveSlideIndex(idx)}
-                                className={`h-1.5 rounded-full transition-all duration-300 ${idx === activeSlideIndex ? 'w-4 bg-purple-600 shadow-md' : 'w-1.5 bg-slate-300 hover:bg-slate-400'}`}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-             </div>
-         )}
-
-         {/* iOS Tab Bar (Bottom Nav) */}
-         <div className="pb-safe bg-white/90 backdrop-blur-xl border-t border-black/5 absolute bottom-0 left-0 right-0 z-30">
-            <div className="flex justify-around items-center h-16 px-1">
+            
+            <div className="flex border-b border-slate-100">
                <button 
-                 onClick={() => {
-                     setActiveMobileTab(activeMobileTab === 'generator' ? null : 'generator');
-                 }}
-                 className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors ${activeMobileTab === 'generator' ? 'text-purple-600' : 'text-slate-400'}`}
+                 onClick={() => setActiveSidebarTab('editor')} 
+                 className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeSidebarTab === 'editor' ? 'border-purple-600 text-purple-900 bg-purple-50/50' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                >
-                 <Sparkles size={24} strokeWidth={activeMobileTab === 'generator' ? 2.5 : 2} />
-                 <span className="text-[10px] font-medium">Создать</span>
+                 Редактор
                </button>
-               
                <button 
-                 onClick={handleExport}
-                 className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors text-slate-400 active:text-slate-600`}
+                 onClick={() => setActiveSidebarTab('library')} 
+                 className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeSidebarTab === 'library' ? 'border-purple-600 text-purple-900 bg-purple-50/50' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                >
-                 <Share size={24} strokeWidth={2} />
-                 <span className="text-[10px] font-medium">Экспорт</span>
+                 Библиотека
                </button>
+            </div>
 
-               <button 
-                 onClick={() => {
-                     setMobileViewMode('visual'); // Switch to visual when opening design
-                     setActiveMobileTab(activeMobileTab === 'design' ? null : 'design');
-                 }}
-                 className={`flex flex-col items-center justify-center gap-1 w-16 h-full transition-colors ${activeMobileTab === 'design' ? 'text-purple-600' : 'text-slate-400'}`}
-               >
-                 <Palette size={24} strokeWidth={activeMobileTab === 'design' ? 2.5 : 2} />
-                 <span className="text-[10px] font-medium">Стиль</span>
+            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200">
+               {activeSidebarTab === 'editor' ? (
+                  <div className="space-y-10">
+                     {renderGeneratorControls()}
+                     <hr className="border-slate-100" />
+                     {renderDesignControls()}
+                  </div>
+               ) : (
+                  renderLibrary()
+               )}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50">
+               <button onClick={handleExport} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
+                  <Download size={18} />
+                  Экспорт в PNG
                </button>
             </div>
          </div>
 
-         {/* NON-BLOCKING HALF-SCREEN DRAWERS */}
-         {/* Instead of a modal that covers everything, we use a fixed bottom sheet that pushes the content up logic above */}
-         {activeMobileTab && (
-           <div 
-             className="fixed bottom-0 left-0 right-0 z-40 bg-white rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] border-t border-slate-100 flex flex-col h-[45vh] pb-safe animate-in slide-in-from-bottom duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-           >
-                {/* Handle Bar */}
-                <div className="w-full flex justify-center pt-3 pb-2 cursor-grab" onClick={() => setActiveMobileTab(null)}>
-                   <div className="w-12 h-1.5 bg-slate-200 rounded-full"></div>
-                </div>
-
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 pb-2 border-b border-slate-50">
-                   <h2 className="text-sm font-bold text-slate-800 tracking-tight uppercase">
-                     {activeMobileTab === 'generator' ? 'Генератор' : 'Настройки Дизайна'}
-                   </h2>
-                   <button onClick={() => setActiveMobileTab(null)} className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200">
-                     <X size={14} />
-                   </button>
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6 pb-24">
-                   {activeMobileTab === 'generator' && renderGeneratorControls()}
-                   {activeMobileTab === 'design' && renderDesignControls()}
-                </div>
-           </div>
-         )}
-      </div>
-
-      {/* --- HIDDEN INPUTS & EXPORT --- */}
-      <input type="file" ref={fileInputRef} className="hidden" onChange={handleImageUpload} accept="image/*" multiple />
-      <div style={{ position: 'absolute', top: 0, left: 0, overflow: 'hidden', height: 0, width: 0, opacity: 0 }}>
-        <div ref={exportRef}>
-          {slides.map((slide) => (
-            <div key={slide.number} style={{ width: '360px', height: '450px', position: 'relative' }}>
-              <SlideCard
-                data={slide} theme={config.theme} totalSlides={slides.length} username={username}
-                onSlideChange={() => {}} readOnly={true} customStyle={slideStyles[slide.number]} isRegenerating={false} className="w-full h-full"
-              />
+         {/* RIGHT PREVIEW AREA */}
+         <div className="flex-1 flex flex-col h-screen overflow-hidden bg-[#F8FAFC] relative">
+            
+            {/* Toolbar */}
+            <div className="absolute top-6 left-6 right-6 flex justify-between items-start z-40 pointer-events-none">
+               <div className="pointer-events-auto bg-white/80 backdrop-blur shadow-sm border border-slate-200 rounded-lg p-1.5 flex gap-1">
+                  <button onClick={() => setActiveSlideIndex(Math.max(0, activeSlideIndex - 1))} disabled={activeSlideIndex === 0} className="p-2 hover:bg-slate-100 rounded-md disabled:opacity-30">
+                     <ChevronLeft size={20} />
+                  </button>
+                  <div className="px-3 flex items-center font-mono text-sm font-medium">
+                     {activeSlideIndex + 1} / {slides.length}
+                  </div>
+                  <button onClick={() => setActiveSlideIndex(Math.min(slides.length - 1, activeSlideIndex + 1))} disabled={activeSlideIndex === slides.length - 1} className="p-2 hover:bg-slate-100 rounded-md disabled:opacity-30">
+                     <ChevronRight size={20} />
+                  </button>
+               </div>
             </div>
-          ))}
-        </div>
+
+            <div className="flex-1 flex items-center justify-center p-4 lg:p-10 overflow-hidden relative" 
+                 onTouchStart={onTouchStart} 
+                 onTouchMove={onTouchMove} 
+                 onTouchEnd={onTouchEnd}
+            >
+               {/* Export Container (Hidden) */}
+               <div ref={exportRef} className="fixed left-[-9999px] top-0 flex gap-0 w-[360px] pointer-events-none opacity-0">
+                  {slides.map(slide => (
+                     <SlideCard 
+                       key={slide.number}
+                       data={slide}
+                       theme={config.theme}
+                       totalSlides={slides.length}
+                       username={username}
+                       onSlideChange={() => {}}
+                       readOnly={true}
+                       customStyle={slideStyles[slide.number]}
+                       className="w-[360px] h-[450px]" // Fixed export size
+                     />
+                  ))}
+               </div>
+
+               <div className="scale-[0.85] sm:scale-90 lg:scale-100 transition-transform duration-300">
+                  <PhoneFrame username={username} isDark={config.theme === Theme.DARK_MODERN || config.theme === Theme.AURORA_GREEN || config.theme === Theme.BOLD_NEON}>
+                     {renderCurrentSlide(false)}
+                  </PhoneFrame>
+               </div>
+            </div>
+         </div>
+      
+         {/* Mobile Drawer/Modal for Controls */}
+         {(activeMobileTab === 'generator' || activeMobileTab === 'design') && (
+            <div className="lg:hidden fixed inset-0 z-50 bg-black/20 backdrop-blur-sm" onClick={() => setActiveMobileTab(null)}>
+               <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-y-auto p-6 pb-24 shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+                  <div className="w-12 h-1 bg-slate-200 rounded-full mx-auto mb-6" />
+                  {activeMobileTab === 'generator' && renderGeneratorControls()}
+                  {activeMobileTab === 'design' && renderDesignControls()}
+               </div>
+            </div>
+         )}
+
       </div>
     </div>
   );
