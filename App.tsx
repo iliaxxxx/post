@@ -3,7 +3,7 @@ import { generateCarouselContent, regenerateSlideContent, generateSlideImage } f
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap, Magnet } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap, Magnet, Hash } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -430,14 +430,11 @@ const App: React.FC = () => {
   );
 
   const renderGeneratorControls = () => (
-    <section className="space-y-5">
-      <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
-        <Wand2 size={16} className="text-purple-500" />
-        Генератор
-      </div>
+    <div className="space-y-6">
       
+      {/* Error Banner */}
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 animate-pulse">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-start gap-3 animate-pulse">
             <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={18} />
             <div className="flex flex-col gap-1">
                 <span className="text-xs font-bold text-red-700">Ошибка</span>
@@ -449,210 +446,262 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold text-slate-500 ml-1">Тема карусели</label>
-        <div className="space-y-3">
-          <input 
-            type="text" 
-            value={config.topic}
-            onChange={e => setConfig(prev => ({ ...prev, topic: e.target.value }))}
-            placeholder="О чем будет пост?"
-            className="w-full bg-slate-50 border-none rounded-xl px-4 py-3 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 transition-all font-medium placeholder:text-slate-400"
-          />
-        </div>
+      {/* Main Content Card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-5">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <Hash size={14} />
+            Контент
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Тема карусели</label>
+            <input 
+              type="text" 
+              value={config.topic}
+              onChange={e => setConfig(prev => ({ ...prev, topic: e.target.value }))}
+              placeholder="Например: 5 способов..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all font-medium placeholder:text-slate-400"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700 flex justify-between">
+               Лид-магнит
+               <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">CTA</span>
+            </label>
+            <div className="relative">
+                <select 
+                    value={leadMagnetId}
+                    onChange={(e) => setLeadMagnetId(e.target.value)}
+                    className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700 pr-10"
+                >
+                    {LEAD_MAGNETS.map(m => (
+                        <option key={m.id} value={m.id}>{m.label}</option>
+                    ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                   <ChevronRight size={16} className="rotate-90" />
+                </div>
+            </div>
+            <p className="text-[10px] text-slate-400 leading-tight">
+                {LEAD_MAGNETS.find(m => m.id === leadMagnetId)?.prompt.split(':')[1] || LEAD_MAGNETS.find(m => m.id === leadMagnetId)?.prompt}
+            </p>
+          </div>
       </div>
 
-      <div className="space-y-3">
-        <div className="flex justify-between items-end">
-          <label className="text-xs font-semibold text-slate-500 ml-1">Tone of Voice</label>
-          <span className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md flex items-center gap-1">
-            {toneInfo.emoji} {toneInfo.label}
-          </span>
-        </div>
-        <input 
-          type="range" min="0" max="100" step="1"
-          value={toneValue}
-          onChange={e => setToneValue(parseInt(e.target.value))}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-        />
-        <p className="text-[10px] text-slate-400 text-center italic">{toneInfo.desc}</p>
-      </div>
-      
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-           <Magnet size={14} className="text-slate-400" />
-           <label className="text-xs font-semibold text-slate-500">Лид-магнит (Призыв в конце)</label>
-        </div>
-        <select 
-            value={leadMagnetId}
-            onChange={(e) => setLeadMagnetId(e.target.value)}
-            className="w-full bg-slate-50 border-none rounded-xl px-4 py-2.5 text-base sm:text-sm focus:ring-2 focus:ring-purple-500 font-medium text-slate-700"
-        >
-            {LEAD_MAGNETS.map(m => (
-                <option key={m.id} value={m.id}>{m.label}</option>
-            ))}
-        </select>
-        <p className="text-[10px] text-slate-400 ml-1">
-            {LEAD_MAGNETS.find(m => m.id === leadMagnetId)?.prompt.split(':')[1] || LEAD_MAGNETS.find(m => m.id === leadMagnetId)?.prompt}
-        </p>
-      </div>
+      {/* Parameters Card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-6">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <LayoutTemplate size={14} />
+            Параметры
+          </div>
 
-      <div className="space-y-3">
-        <div className="flex justify-between items-end">
-          <label className="text-xs font-semibold text-slate-500 ml-1">Количество слайдов</label>
-          <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-            {config.slideCount} шт.
-          </span>
-        </div>
-        <input 
-          type="range" min="3" max="10" step="1"
-          value={config.slideCount}
-          onChange={e => setConfig(prev => ({ ...prev, slideCount: parseInt(e.target.value) }))}
-          className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pink-500"
-        />
+          {/* Tone Slider */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium text-slate-700">Тональность</label>
+              <div className="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg flex items-center gap-1.5">
+                <span>{toneInfo.emoji}</span>
+                <span>{toneInfo.label}</span>
+              </div>
+            </div>
+            <div className="relative h-6 flex items-center">
+               <div className="absolute inset-0 h-1.5 rounded-full bg-gradient-to-r from-blue-300 via-purple-300 to-pink-400 top-1/2 -translate-y-1/2"></div>
+               <input 
+                type="range" min="0" max="100" step="1"
+                value={toneValue}
+                onChange={e => setToneValue(parseInt(e.target.value))}
+                className="w-full h-full appearance-none bg-transparent cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-purple-600 [&::-webkit-slider-thumb]:transition-transform hover:[&::-webkit-slider-thumb]:scale-110"
+              />
+            </div>
+            <div className="flex justify-between text-[10px] font-semibold text-slate-300 uppercase tracking-wide">
+               <span>Серьезно</span>
+               <span>Весело</span>
+            </div>
+          </div>
+
+          <div className="w-full h-px bg-slate-100" />
+
+          {/* Count Slider */}
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium text-slate-700">Количество слайдов</label>
+              <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">
+                {config.slideCount}
+              </span>
+            </div>
+            <input 
+              type="range" min="3" max="10" step="1"
+              value={config.slideCount}
+              onChange={e => setConfig(prev => ({ ...prev, slideCount: parseInt(e.target.value) }))}
+              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-800"
+            />
+             <div className="flex justify-between text-[10px] font-semibold text-slate-300 uppercase tracking-wide">
+               <span>3</span>
+               <span>10</span>
+            </div>
+          </div>
       </div>
 
       <button 
         onClick={handleGenerate}
         disabled={isGenerating}
-        className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl shadow-slate-200 hover:shadow-2xl hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
       >
         {isGenerating ? (
           <>
-            <RefreshCw size={18} className="animate-spin" />
-            Генерирую...
+            <RefreshCw size={20} className="animate-spin" />
+            <span>Пишу сценарий...</span>
           </>
         ) : (
           <>
-            <Sparkles size={18} />
-            Сгенерировать
+            <Sparkles size={20} className="text-purple-300 group-hover:text-white transition-colors" />
+            <span>Сгенерировать</span>
           </>
         )}
       </button>
 
       <button
         onClick={handleSaveToLibrary}
-        className="w-full py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2 text-sm"
+        className="w-full py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl font-semibold hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center justify-center gap-2 text-sm"
       >
         <Save size={16} />
-        Сохранить в коллекцию
+        В коллекцию
       </button>
-    </section>
+    </div>
   );
 
   const renderDesignControls = () => (
     <div className="space-y-6">
-      {/* Fonts */}
-      <div className="space-y-3">
-        <label className="text-xs font-semibold text-slate-500 ml-1">Шрифты</label>
+      
+      {/* Typography Card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <Type size={14} />
+            Типографика
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Заголовок</label>
+              <select 
+                value={slideStyles[slides[activeSlideIndex]?.number]?.titleFontFamily || ''}
+                onChange={(e) => updateGlobalStyle({ titleFontFamily: e.target.value })}
+                className="w-full bg-slate-50 border-none rounded-lg px-2 py-2 text-xs font-medium focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="">Авто</option>
+                {availableFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-500 uppercase">Текст</label>
+              <select 
+                value={slideStyles[slides[activeSlideIndex]?.number]?.bodyFontFamily || ''}
+                onChange={(e) => updateGlobalStyle({ bodyFontFamily: e.target.value })}
+                className="w-full bg-slate-50 border-none rounded-lg px-2 py-2 text-xs font-medium focus:ring-1 focus:ring-purple-500"
+              >
+                <option value="">Авто</option>
+                {availableFonts.map(f => <option key={f.name} value={f.name}>{f.name}</option>)}
+              </select>
+            </div>
+        </div>
         
-        <div className="space-y-2">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Заголовок</span>
-          <select 
-            value={slideStyles[slides[activeSlideIndex]?.number]?.titleFontFamily || ''}
-            onChange={(e) => updateGlobalStyle({ titleFontFamily: e.target.value })}
-            className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="">По умолчанию</option>
-            {availableFonts.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Основной текст</span>
-          <select 
-            value={slideStyles[slides[activeSlideIndex]?.number]?.bodyFontFamily || ''}
-            onChange={(e) => updateGlobalStyle({ bodyFontFamily: e.target.value })}
-            className="w-full bg-slate-50 border-none rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="">По умолчанию</option>
-            {availableFonts.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
-          </select>
-        </div>
-
-         <div className="flex gap-2">
+        <div className="relative">
             <input 
               type="text" 
               value={customFontInput}
               onChange={(e) => setCustomFontInput(e.target.value)}
-              placeholder="Google Font Name"
-              className="flex-1 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm"
+              placeholder="Google Font..."
+              className="w-full bg-slate-50 border-none rounded-lg pl-3 pr-8 py-2 text-xs font-medium placeholder:text-slate-300"
             />
-            <button onClick={handleAddCustomFont} className="bg-slate-200 p-2 rounded-lg hover:bg-slate-300">
-               <Plus size={16} />
+            <button onClick={handleAddCustomFont} className="absolute right-1 top-1 p-1 bg-white rounded-md shadow-sm text-slate-400 hover:text-purple-600">
+               <Plus size={14} />
             </button>
-         </div>
+        </div>
       </div>
       
-      {/* Colors */}
-      <div className="space-y-3">
-        <label className="text-xs font-semibold text-slate-500 ml-1">Цвета текста</label>
-        
+      {/* Colors Card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-5">
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <Palette size={14} />
+            Палитра
+        </div>
+
+        {/* Title Color */}
         <div className="space-y-2">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Заголовок</span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase">Цвет заголовка</span>
           <div className="flex gap-2 flex-wrap">
             <button 
                 onClick={() => updateGlobalStyle({ titleColor: '' })}
-                className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center hover:scale-110 transition-transform"
-                title="По умолчанию"
+                className={`w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all ${!slideStyles[slides[activeSlideIndex]?.number]?.titleColor ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
+                title="Сброс"
             >
-                <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
+                <X size={16} />
             </button>
-            {COLOR_PRESETS.map((c, i) => (
+            {COLOR_PRESETS.map((c, i) => {
+               const isActive = slideStyles[slides[activeSlideIndex]?.number]?.titleColor === c;
+               return (
                <button 
                  key={i}
-                 className="w-6 h-6 rounded-full border border-black/10 hover:scale-110 transition-transform shadow-sm"
+                 className={`w-9 h-9 rounded-xl border border-black/5 shadow-sm hover:scale-105 transition-all ${isActive ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
                  style={{ backgroundColor: c }}
                  onClick={() => updateGlobalStyle({ titleColor: c })}
                />
-            ))}
+            )})}
           </div>
         </div>
 
+        {/* Body Color */}
         <div className="space-y-2">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Основной текст</span>
+          <span className="text-[10px] font-bold text-slate-500 uppercase">Цвет текста</span>
           <div className="flex gap-2 flex-wrap">
              <button 
                 onClick={() => updateGlobalStyle({ textColor: '' })}
-                className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center hover:scale-110 transition-transform"
-                title="По умолчанию"
+                className={`w-9 h-9 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all ${!slideStyles[slides[activeSlideIndex]?.number]?.textColor ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
+                title="Сброс"
             >
-                <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
+                <X size={16} />
             </button>
-            {COLOR_PRESETS.map((c, i) => (
+            {COLOR_PRESETS.map((c, i) => {
+               const isActive = slideStyles[slides[activeSlideIndex]?.number]?.textColor === c;
+               return (
                <button 
                  key={i}
-                 className="w-6 h-6 rounded-full border border-black/10 hover:scale-110 transition-transform shadow-sm"
+                 className={`w-9 h-9 rounded-xl border border-black/5 shadow-sm hover:scale-105 transition-all ${isActive ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
                  style={{ backgroundColor: c }}
                  onClick={() => updateGlobalStyle({ textColor: c })}
                />
-            ))}
+            )})}
           </div>
         </div>
       </div>
 
-      {/* Backgrounds */}
-      <div className="space-y-3">
-         <label className="text-xs font-semibold text-slate-500 ml-1">Фон слайда</label>
+      {/* Backgrounds Card */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+         <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+            <ImagePlus size={14} />
+            Фон
+         </div>
          
-         {/* Gradients */}
-          <div className="flex flex-wrap gap-2 mt-2">
-            {GRADIENT_PRESETS.map((g, i) => (
+         <div className="grid grid-cols-5 gap-2.5">
+            {GRADIENT_PRESETS.map((g, i) => {
+               const isActive = slideStyles[slides[activeSlideIndex]?.number]?.backgroundValue === g.value;
+               return (
                <button 
                  key={i}
-                 className="w-8 h-8 rounded-full border border-black/5 hover:scale-110 transition-transform shadow-sm"
+                 className={`w-full aspect-square rounded-2xl border border-black/5 hover:scale-105 transition-all shadow-sm ${isActive ? 'ring-2 ring-purple-500 ring-offset-2' : ''}`}
                  style={{ background: g.value }}
                  onClick={() => updateSlideStyle({ backgroundType: 'gradient', backgroundValue: g.value })}
                  title={g.name}
                />
-            ))}
+            )})}
           </div>
 
-          <button onClick={handleApplyBgToAll} className="w-full py-2 text-xs text-slate-500 hover:text-slate-800 underline">
-             Применить этот фон ко всем слайдам
+          <button onClick={handleApplyBgToAll} className="w-full py-2.5 mt-2 text-xs font-bold text-slate-500 bg-slate-50 rounded-xl hover:bg-slate-100 hover:text-slate-700 transition-colors">
+             Применить ко всем слайдам
           </button>
           
-          {/* Restore hidden file input here for Mockup access */}
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -663,17 +712,22 @@ const App: React.FC = () => {
          />
       </div>
 
-      {/* Neon Glow Toggle */}
-      <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-4">
-         <div className="flex items-center gap-2">
-            <Zap size={16} className="text-indigo-500" />
-            <label className="text-xs font-bold text-slate-700">Неоновое свечение (Заголовок)</label>
+      {/* Effects Card */}
+      <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+         <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-indigo-50 text-indigo-500 rounded-lg">
+                <Zap size={16} />
+            </div>
+            <div className="flex flex-col">
+                <span className="text-xs font-bold text-slate-700">Неон</span>
+                <span className="text-[10px] text-slate-400">Свечение заголовка</span>
+            </div>
          </div>
          <button 
            onClick={() => updateGlobalStyle({ titleGlow: !currentStyle.titleGlow })}
-           className={`w-10 h-5 rounded-full relative transition-colors duration-200 ${currentStyle.titleGlow ? 'bg-indigo-500' : 'bg-slate-300'}`}
+           className={`w-11 h-6 rounded-full relative transition-colors duration-300 ${currentStyle.titleGlow ? 'bg-indigo-500' : 'bg-slate-200'}`}
          >
-           <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${currentStyle.titleGlow ? 'translate-x-5' : 'translate-x-0'}`} />
+           <div className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${currentStyle.titleGlow ? 'translate-x-5' : 'translate-x-0'}`} />
          </button>
       </div>
 
@@ -688,24 +742,25 @@ const App: React.FC = () => {
        </div>
        
        {savedCarousels.length === 0 ? (
-         <div className="text-center py-10 text-slate-400 text-sm">
-            Нет сохраненных каруселей
+         <div className="flex flex-col items-center justify-center py-20 text-slate-400 text-sm border-2 border-dashed border-slate-100 rounded-2xl bg-slate-50/50">
+            <Library size={40} className="mb-3 opacity-20" />
+            <p>Нет сохраненных каруселей</p>
          </div>
        ) : (
          <div className="space-y-3">
             {savedCarousels.map(item => (
-               <div key={item.id} className="p-3 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer group" onClick={() => handleLoadFromLibrary(item)}>
+               <div key={item.id} className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group hover:border-purple-100" onClick={() => handleLoadFromLibrary(item)}>
                   <div className="flex justify-between items-start">
                      <div>
-                        <div className="font-bold text-sm text-slate-800 mb-1">{item.topic}</div>
-                        <div className="text-xs text-slate-500 flex items-center gap-2">
-                           <span>{new Date(item.timestamp).toLocaleDateString()}</span>
+                        <div className="font-bold text-sm text-slate-800 mb-1.5 line-clamp-1">{item.topic}</div>
+                        <div className="text-[11px] font-medium text-slate-400 flex items-center gap-2">
+                           <span className="bg-slate-50 px-1.5 py-0.5 rounded">{new Date(item.timestamp).toLocaleDateString()}</span>
                            <span>•</span>
                            <span>{item.slides.length} слайдов</span>
                         </div>
                      </div>
-                     <button onClick={(e) => handleDeleteFromLibrary(item.id, e)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
-                        <Trash2 size={14} />
+                     <button onClick={(e) => handleDeleteFromLibrary(item.id, e)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                        <Trash2 size={16} />
                      </button>
                   </div>
                </div>
@@ -738,24 +793,26 @@ const App: React.FC = () => {
       <div className="max-w-[1600px] mx-auto min-h-screen flex">
          
          {/* LEFT SIDEBAR (Desktop) */}
-         <div className="hidden lg:flex w-[400px] flex-col border-r border-slate-200 bg-white h-screen sticky top-0">
-            <div className="p-6 border-b border-slate-100">
-               <div className="flex items-center gap-2 font-black text-2xl tracking-tight bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">
-                  <Layers size={28} className="text-purple-600" />
+         <div className="hidden lg:flex w-[420px] flex-col border-r border-slate-200 bg-[#FAFAFA] h-screen sticky top-0 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.05)] z-20">
+            <div className="p-6 pb-2">
+               <div className="flex items-center gap-2 font-black text-2xl tracking-tight text-slate-900">
+                  <div className="w-8 h-8 bg-black text-white rounded-lg flex items-center justify-center">
+                    <Layers size={20} className="text-white" />
+                  </div>
                   CarouselKit
                </div>
             </div>
             
-            <div className="flex border-b border-slate-100">
+            <div className="flex px-6 pt-2 pb-0">
                <button 
                  onClick={() => setActiveSidebarTab('editor')} 
-                 className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeSidebarTab === 'editor' ? 'border-purple-600 text-purple-900 bg-purple-50/50' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                 className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeSidebarTab === 'editor' ? 'border-black text-black' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                >
                  Редактор
                </button>
                <button 
                  onClick={() => setActiveSidebarTab('library')} 
-                 className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeSidebarTab === 'library' ? 'border-purple-600 text-purple-900 bg-purple-50/50' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                 className={`pb-3 px-4 text-sm font-bold border-b-2 transition-colors ${activeSidebarTab === 'library' ? 'border-black text-black' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
                >
                  Библиотека
                </button>
@@ -763,9 +820,8 @@ const App: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200">
                {activeSidebarTab === 'editor' ? (
-                  <div className="space-y-10">
+                  <div className="space-y-8 animate-in fade-in slide-in-from-left-4 duration-500">
                      {renderGeneratorControls()}
-                     <hr className="border-slate-100" />
                      {renderDesignControls()}
                   </div>
                ) : (
@@ -773,10 +829,10 @@ const App: React.FC = () => {
                )}
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50">
-               <button onClick={handleExport} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
-                  <Download size={18} />
-                  Экспорт в PNG
+            <div className="p-6 border-t border-slate-200 bg-white/50 backdrop-blur">
+               <button onClick={handleExport} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all shadow-lg hover:shadow-xl hover:shadow-slate-200">
+                  <Download size={20} />
+                  Скачать PNG
                </button>
             </div>
          </div>
