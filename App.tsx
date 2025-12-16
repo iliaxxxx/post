@@ -139,6 +139,7 @@ const App: React.FC = () => {
   const [loadingSlides, setLoadingSlides] = useState<Record<number, boolean>>({});
   
   // Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
   // --- EFFECTS ---
@@ -268,6 +269,41 @@ const App: React.FC = () => {
     });
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const readFile = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    };
+
+    try {
+      const loadedImages = await Promise.all(Array.from(files).map(readFile));
+      setSlideStyles(prev => {
+        const newStyles = { ...prev };
+        loadedImages.forEach((imgData, i) => {
+          const targetIndex = activeSlideIndex + i;
+          if (targetIndex >= slides.length) return;
+          const slideNum = slides[targetIndex].number;
+          newStyles[slideNum] = {
+            ...(newStyles[slideNum] || {}),
+            backgroundType: 'image',
+            backgroundValue: imgData
+          };
+        });
+        return newStyles;
+      });
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err) {
+      console.error("Failed to load images", err);
+    }
+  };
+
   const handleAddCustomFont = () => {
     if (!customFontInput.trim()) return;
     const fontName = customFontInput.trim();
@@ -386,6 +422,7 @@ const App: React.FC = () => {
         username={username}
         onSlideChange={handleContentChange}
         onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
+        onUploadBg={() => fileInputRef.current?.click()}
         isRegenerating={loadingSlides[currentSlideData.number]}
         customStyle={slideStyles[currentSlideData.number]}
         className="w-full h-full"
@@ -510,7 +547,7 @@ const App: React.FC = () => {
         <label className="text-xs font-semibold text-slate-500 ml-1">Шрифты</label>
         
         <div className="space-y-2">
-          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Заголовки</span>
+          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Заголовок</span>
           <select 
             value={slideStyles[slides[activeSlideIndex]?.number]?.titleFontFamily || ''}
             onChange={(e) => updateGlobalStyle({ titleFontFamily: e.target.value })}
@@ -599,11 +636,11 @@ const App: React.FC = () => {
          <label className="text-xs font-semibold text-slate-500 ml-1">Фон слайда</label>
          
          {/* Gradients */}
-          <div className="grid grid-cols-5 gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             {GRADIENT_PRESETS.map((g, i) => (
                <button 
                  key={i}
-                 className="w-full aspect-square rounded-full border border-black/5 hover:scale-110 transition-transform"
+                 className="w-8 h-8 rounded-full border border-black/5 hover:scale-110 transition-transform shadow-sm"
                  style={{ background: g.value }}
                  onClick={() => updateSlideStyle({ backgroundType: 'gradient', backgroundValue: g.value })}
                  title={g.name}
@@ -614,6 +651,16 @@ const App: React.FC = () => {
           <button onClick={handleApplyBgToAll} className="w-full py-2 text-xs text-slate-500 hover:text-slate-800 underline">
              Применить этот фон ко всем слайдам
           </button>
+          
+          {/* Restore hidden file input here for Mockup access */}
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept="image/*"
+            onChange={handleImageUpload}
+            multiple
+         />
       </div>
 
       {/* Neon Glow Toggle */}
