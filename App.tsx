@@ -137,10 +137,8 @@ const App: React.FC = () => {
   // Editing State
   const [slideStyles, setSlideStyles] = useState<Record<number, SlideStyle>>({});
   const [loadingSlides, setLoadingSlides] = useState<Record<number, boolean>>({});
-  const [generatingBgSlides, setGeneratingBgSlides] = useState<Record<number, boolean>>({});
-
+  
   // Refs
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
   // --- EFFECTS ---
@@ -216,34 +214,6 @@ const App: React.FC = () => {
     }
   };
   
-  const handleGenerateAIBackground = async () => {
-      const slide = slides[activeSlideIndex];
-      const targetSlideNumber = slide.number;
-
-      setGeneratingBgSlides(prev => ({ ...prev, [targetSlideNumber]: true }));
-      try {
-          const topic = config.topic || slide.title;
-          const context = slide.content;
-          const bgImage = await generateSlideImage(topic, context);
-          
-          if (bgImage) {
-              setSlideStyles(prev => ({
-                ...prev,
-                [targetSlideNumber]: {
-                  ...(prev[targetSlideNumber] || {}),
-                  backgroundType: 'image',
-                  backgroundValue: bgImage
-                }
-              }));
-          }
-      } catch (e: any) {
-          console.error(e);
-          alert(e.message || "Не удалось сгенерировать изображение");
-      } finally {
-          setGeneratingBgSlides(prev => ({ ...prev, [targetSlideNumber]: false }));
-      }
-  };
-
   const handleContentChange = (field: keyof SlideData, value: string) => {
     setSlides(prev => {
       const newSlides = [...prev];
@@ -296,41 +266,6 @@ const App: React.FC = () => {
       });
       return newStyles;
     });
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const readFile = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    };
-
-    try {
-      const loadedImages = await Promise.all(Array.from(files).map(readFile));
-      setSlideStyles(prev => {
-        const newStyles = { ...prev };
-        loadedImages.forEach((imgData, i) => {
-          const targetIndex = activeSlideIndex + i;
-          if (targetIndex >= slides.length) return;
-          const slideNum = slides[targetIndex].number;
-          newStyles[slideNum] = {
-            ...(newStyles[slideNum] || {}),
-            backgroundType: 'image',
-            backgroundValue: imgData
-          };
-        });
-        return newStyles;
-      });
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (err) {
-      console.error("Failed to load images", err);
-    }
   };
 
   const handleAddCustomFont = () => {
@@ -451,10 +386,7 @@ const App: React.FC = () => {
         username={username}
         onSlideChange={handleContentChange}
         onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
-        onUploadBg={() => fileInputRef.current?.click()}
-        onGenerateBg={handleGenerateAIBackground}
         isRegenerating={loadingSlides[currentSlideData.number]}
-        isGeneratingBg={generatingBgSlides[currentSlideData.number]}
         customStyle={slideStyles[currentSlideData.number]}
         className="w-full h-full"
       />
@@ -573,11 +505,6 @@ const App: React.FC = () => {
 
   const renderDesignControls = () => (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 text-sm font-bold text-slate-800 uppercase tracking-wider">
-        <Palette size={16} className="text-purple-500" />
-        Дизайн
-      </div>
-
       {/* Fonts */}
       <div className="space-y-3">
         <label className="text-xs font-semibold text-slate-500 ml-1">Шрифты</label>
@@ -670,25 +597,6 @@ const App: React.FC = () => {
       {/* Backgrounds */}
       <div className="space-y-3">
          <label className="text-xs font-semibold text-slate-500 ml-1">Фон слайда</label>
-         
-         <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => fileInputRef.current?.click()} className="flex items-center justify-center gap-2 py-2 px-3 bg-slate-100 rounded-lg text-xs font-medium hover:bg-slate-200">
-               <ImagePlus size={14} />
-               Загрузить
-            </button>
-            <button onClick={handleGenerateAIBackground} className="flex items-center justify-center gap-2 py-2 px-3 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-medium hover:bg-indigo-100">
-               <Wand2 size={14} />
-               AI Фон
-            </button>
-         </div>
-         <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept="image/*"
-            onChange={handleImageUpload}
-            multiple
-         />
          
          {/* Gradients */}
           <div className="grid grid-cols-5 gap-2 mt-2">
