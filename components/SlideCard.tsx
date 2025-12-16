@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SlideData, Theme, SlideStyle, TextSize, TextAlign } from '../types';
-import { Heart, Send, Bookmark, ImagePlus, RefreshCw, Zap, Trash2, ArrowLeft, ArrowRight, Highlighter, Wand2, Circle, Globe } from 'lucide-react';
+import { Heart, Send, Bookmark, ImagePlus, RefreshCw, Zap, Trash2, Wand2 } from 'lucide-react';
 
 interface SlideCardProps {
   data: SlideData;
@@ -146,9 +146,10 @@ const EditableText = ({
 
   const htmlContent = applyHighlights(value, theme);
 
+  // For the unified card, we default isDark=true for glow calculation because the template is dark-based.
   const finalStyle = {
     ...styleOverride,
-    ...(glowEnabled ? getGlowStyle(true, glowColor, theme !== Theme.MINIMAL_LIGHT && theme !== Theme.RETRO_PAPER) : {})
+    ...(glowEnabled ? getGlowStyle(true, glowColor, true) : {})
   };
 
   if (isEditing && !readOnly) {
@@ -193,21 +194,12 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
     bgImage: finalBg
   };
 
-  const renderCard = () => {
-    switch (theme) {
-      case Theme.AURORA_GREEN: return <AuroraCard {...commonProps} />;
-      case Theme.RETRO_PAPER: return <RetroPaperCard {...commonProps} />;
-      case Theme.BOLD_NEON: return <BoldNeonCard {...commonProps} />;
-      case Theme.DARK_MODERN: return <DarkModernCard {...commonProps} />;
-      case Theme.MINIMAL_DARK: return <MinimalCard {...commonProps} isDark={true} />;
-      case Theme.MINIMAL_LIGHT: default: return <MinimalCard {...commonProps} isDark={false} />;
-    }
-  };
-
+  // UNIFIED CARD RENDER
+  // We use the robust DarkModernCard structure as the base for the single template.
   return (
     <div className={`group relative h-full w-full ${className}`}>
       <div className="w-full h-full">
-        {renderCard()}
+         <UnifiedCard {...commonProps} />
       </div>
       
       {!readOnly && (
@@ -262,130 +254,14 @@ const getOverrides = (customStyle?: SlideStyle) => {
 
 // --- STYLE COMPONENTS ---
 
-const AuroraCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
-  const overrides = getOverrides(customStyle);
-  const isCover = data.number === 1;
-  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : (isCover ? 'text-4xl sm:text-5xl' : 'text-3xl sm:text-4xl');
-
-  // Exact reproduction of the requested "Aurora" texture
-  const auroraTexture = `
-    repeating-linear-gradient(90deg, 
-      transparent 0%, 
-      transparent 6%, 
-      rgba(255, 255, 255, 0.05) 9%, 
-      rgba(255, 255, 255, 0.12) 12%, 
-      rgba(255, 255, 255, 0.03) 15%, 
-      transparent 18%
-    ),
-    linear-gradient(180deg, #0e1c14 0%, #1a332a 30%, #5ba56d 100%)
-  `;
-  
-  const bgConfig = getBackgroundConfig(bgImage || auroraTexture, overrides, true);
-
-  return (
-    <div 
-      className="w-full h-full text-white flex flex-col relative overflow-hidden font-['Manrope']"
-      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
-    >
-      {/* Noise Texture Overlay */}
-      <div className="absolute inset-0 opacity-[0.4] pointer-events-none z-0 mix-blend-overlay" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='1'/%3E%3C/svg%3E")`
-      }}></div>
-
-      {/* --- LAYOUT FOR COVER SLIDE --- */}
-      {isCover ? (
-        <div className="relative z-10 flex flex-col h-full p-6 sm:p-8">
-           {/* Blurred Background Text */}
-           <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-0 overflow-hidden">
-             <div 
-               className="text-[4rem] sm:text-[6rem] font-bold text-white opacity-[0.1] blur-[8px] leading-tight text-center scale-[1.6] whitespace-pre-wrap font-['Manrope']"
-             >
-                {data.title}
-             </div>
-           </div>
-
-           {/* Header */}
-           <div className="relative z-10 flex justify-between items-center text-[10px] sm:text-[11px] font-medium tracking-wide opacity-80 uppercase font-['Inter']">
-              <span>web-design</span>
-              <Circle size={5} fill="#D9F99D" className="text-[#D9F99D]" />
-              <span>{username.replace('@', '')}.so</span>
-           </div>
-
-           {/* Main Content */}
-           <div className="relative z-10 flex-1 flex flex-col justify-center gap-4">
-              <EditableText 
-                 tagName="h2" 
-                 className={`font-semibold leading-[1.1] tracking-tight ${titleSize} drop-shadow-lg`} 
-                 value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-                 styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
-                 glowEnabled={overrides.titleGlow}
-                 glowColor={overrides.titleColor}
-              />
-              
-              {data.highlight && (
-                 <div className="mt-1">
-                    <span className="inline-block border border-white/20 bg-white/5 rounded-full px-4 py-1.5 text-[11px] sm:text-xs backdrop-blur-md text-emerald-100">
-                      <EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} />
-                    </span>
-                 </div>
-              )}
-           </div>
-
-           {/* Footer */}
-           <div className="relative z-10 mt-auto pt-8 flex justify-between items-end text-[10px] sm:text-[11px] opacity-90">
-              <div className="flex items-center gap-2 font-medium">
-                 <Bookmark size={16} fill="currentColor" />
-                 <span>сохраняй себе</span>
-              </div>
-           </div>
-        </div>
-      ) : (
-        /* --- LAYOUT FOR CONTENT SLIDES --- */
-        <div className="relative z-10 flex flex-col h-full p-6 sm:p-8">
-           {/* Header */}
-           <div className="relative z-10 flex justify-between items-start text-[10px] sm:text-[11px] font-medium tracking-wide opacity-70 uppercase font-['Inter'] mb-6">
-              <span className="max-w-[50%] opacity-60 text-left">// {data.title.substring(0, 20)}...</span>
-           </div>
-
-           {/* Main Content */}
-           <div className="relative z-10 flex-1 flex flex-col">
-              <EditableText 
-                 tagName="h2" 
-                 className={`font-semibold leading-[1.15] tracking-tight mb-4 ${titleSize}`} 
-                 value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-                 styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
-                 glowEnabled={overrides.titleGlow}
-                 glowColor={overrides.titleColor}
-              />
-              
-              {/* Tag Pill */}
-              <div className="flex items-center gap-2 mb-6">
-                 <span className="font-mono text-emerald-200 opacity-60 text-xs">(0{data.number})</span>
-                 {data.highlight && (
-                    <span className="border border-white/30 rounded-full px-3 py-0.5 text-[10px] uppercase tracking-wide">
-                        <EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} />
-                    </span>
-                 )}
-              </div>
-
-              {/* Body Text */}
-              <div className="mt-auto bg-black/20 backdrop-blur-sm rounded-xl p-4 sm:p-5 border border-white/5">
-                <div className={`font-light leading-relaxed text-sm sm:text-base opacity-95 text-emerald-50`} style={{ fontFamily: overrides.bodyFontFamily }}>
-                   <EditableText tagName="div" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color }} />
-                </div>
-              </div>
-           </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
+const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : 'text-2xl sm:text-3xl';
   const contentSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'content') : 'text-sm sm:text-base';
-  const bgConfig = getBackgroundConfig(bgImage, overrides, true); // true = isDark
+  
+  // Default to Dark style if no overrides, but allow light overrides if set
+  const isDarkBase = true;
+  const bgConfig = getBackgroundConfig(bgImage, overrides, isDarkBase);
   
   const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.4 : 0);
 
@@ -414,7 +290,7 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
         <div className="flex-1 flex flex-col justify-center gap-3 sm:gap-4">
           <EditableText 
             tagName="h2" 
-            className={`font-['Inter'] font-bold leading-[1.2] tracking-tight ${titleSize}`} 
+            className={`font-['Inter'] font-bold leading-[1.2] tracking-tight uppercase ${titleSize}`} 
             value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} autoHighlight={true} 
             styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
             glowEnabled={overrides.titleGlow}
@@ -448,144 +324,6 @@ const DarkModernCard: React.FC<any> = ({ data, theme, bgImage, username, onSlide
              <Send className="w-5 h-5 sm:w-6 sm:h-6 -rotate-12 shrink-0 opacity-90" strokeWidth={2} />
              <Bookmark className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 opacity-90" strokeWidth={0} fill="currentColor" />
            </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const RetroPaperCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, bgImage, username, onSlideChange, readOnly, customStyle }) => {
-  const overrides = getOverrides(customStyle);
-  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-5xl';
-  const bgConfig = getBackgroundConfig(bgImage, overrides, false); // false = not dark
-  
-  if (!bgConfig.textAlign) bgConfig.textAlign = 'center';
-
-  const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.2 : 0);
-
-  return (
-    <div 
-      className="w-full h-full flex flex-col relative overflow-hidden"
-      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
-    >
-       <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
-
-       {!bgImage && (
-         <div className="absolute inset-0 opacity-[0.4] z-0" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg width='6' height='6' viewBox='0 0 6 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.05' fill-rule='evenodd'%3E%3Cpath d='M5 0h1v1H5V0zM0 5h1v1H0V5z'/%3E%3C/g%3E%3C/svg%3E")`}}></div>
-       )}
-
-      <div className="absolute inset-4 border-2 border-black flex flex-col pointer-events-none z-20"></div>
-      <div className="flex-1 flex flex-col p-8 z-10 h-full">
-        <div className="flex justify-between items-center mb-6">
-           <div className="font-['Courier_Prime'] font-bold text-[10px] sm:text-xs">NO. {data.number}</div>
-           <div className="font-['Courier_Prime'] font-bold text-[10px] sm:text-xs uppercase text-zinc-600">{username.replace('@', '')}</div>
-        </div>
-        <div className={`flex-1 flex flex-col justify-center ${bgConfig.textAlign === 'left' ? 'items-start text-left' : bgConfig.textAlign === 'right' ? 'items-end text-right' : 'items-center text-center'}`}>
-          <EditableText 
-            tagName="h2" 
-            className={`font-['Anton'] uppercase leading-[0.9] text-black tracking-tight mb-4 sm:mb-8 mix-blend-multiply break-words w-full ${titleSize}`} 
-            value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-            styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }} 
-            glowEnabled={overrides.titleGlow}
-            glowColor={overrides.titleColor}
-          />
-          <EditableText tagName="p" className="font-['Courier_Prime'] text-xs sm:text-sm leading-relaxed text-zinc-800 font-bold max-w-[90%]" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.bodyFontFamily }} />
-        </div>
-        <div className="mt-auto pt-6 flex justify-between items-center">
-           {isFirst && <div className="text-[8px] sm:text-[10px] font-mono">SWIPE -></div>}
-           {isLast && data.cta ? (
-              <div className={`w-full bg-black text-white text-center font-['Anton'] uppercase text-base sm:text-lg transition-colors ${!readOnly ? 'cursor-pointer pointer-events-auto hover:bg-zinc-800' : ''}`}>
-                <EditableText tagName="div" className="py-2" value={data.cta} onChange={(val: string) => onSlideChange('cta', val)} readOnly={readOnly} theme={theme} />
-              </div>
-           ) : ( !isFirst && <div className="text-[8px] sm:text-[10px] font-mono opacity-50">{data.number} / {totalSlides}</div> )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const BoldNeonCard: React.FC<any> = ({ data, theme, totalSlides, bgImage, onSlideChange, readOnly, customStyle }) => {
-  const overrides = getOverrides(customStyle);
-  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : 'text-3xl sm:text-4xl';
-  const bgConfig = getBackgroundConfig(bgImage, overrides, true);
-
-  const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? 0.7 : 0);
-
-  return (
-    <div 
-      className="w-full h-full text-white flex flex-col p-6 sm:p-8 relative overflow-hidden"
-      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
-    >
-      <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
-
-      {!bgImage && (
-        <>
-          <div className="absolute top-[-20%] right-[-20%] w-[200px] h-[200px] bg-indigo-600 blur-[80px] opacity-40 rounded-full pointer-events-none z-0"></div>
-          <div className="absolute bottom-[-20%] left-[-20%] w-[200px] h-[200px] bg-fuchsia-600 blur-[80px] opacity-30 rounded-full pointer-events-none z-0"></div>
-        </>
-      )}
-      
-      <div className="relative z-10 flex justify-between items-center mb-6">
-        <div className="flex gap-1">
-          {Array.from({ length: totalSlides }).map((_, i) => (
-            <div key={i} className={`h-1 rounded-full transition-all ${i + 1 === data.number ? 'w-6 bg-white' : 'w-2 bg-zinc-700'}`} />
-          ))}
-        </div>
-        <Zap size={16} className="text-yellow-400 fill-yellow-400" />
-      </div>
-      <div className="relative z-10 flex-1 flex flex-col justify-center">
-        <EditableText 
-          tagName="h2" 
-          className={`font-['Outfit'] font-black leading-none mb-6 text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400 ${titleSize}`} 
-          value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-          styleOverride={overrides.titleColor ? { color: overrides.titleColor, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.titleFontFamily } : overrides.color ? { color: overrides.color, WebkitTextFillColor: 'initial', backgroundImage: 'none', fontFamily: overrides.titleFontFamily } : { fontFamily: overrides.titleFontFamily }}
-          glowEnabled={overrides.titleGlow}
-          glowColor={overrides.titleColor}
-        />
-        <EditableText tagName="p" className="font-['Outfit'] font-light text-base sm:text-lg leading-snug text-zinc-300" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.bodyFontFamily }} />
-      </div>
-    </div>
-  );
-};
-
-const MinimalCard: React.FC<any> = ({ data, theme, isFirst, isLast, totalSlides, isDark, bgImage, username, onSlideChange, readOnly, customStyle }) => {
-  const overrides = getOverrides(customStyle);
-  const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : (isFirst ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl');
-  const bgConfig = getBackgroundConfig(bgImage, overrides, isDark);
-
-  const overlayOpacity = overrides.overlayOpacity !== undefined ? overrides.overlayOpacity : (bgImage ? (isDark ? 0.7 : 0.2) : 0);
-
-  return (
-    <div 
-      className={`w-full h-full flex flex-col justify-between p-6 sm:p-8 transition-all duration-300 select-none relative overflow-hidden ${isDark ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-900'}`}
-      style={{ ...bgConfig, fontFamily: overrides.bodyFontFamily }}
-    >
-      <div className="absolute inset-0 bg-black pointer-events-none z-0" style={{ opacity: overlayOpacity }}></div>
-
-      <div className="relative z-10 flex justify-between items-center opacity-50">
-        <div className="flex items-center gap-1"><span className="text-xs font-semibold uppercase tracking-widest font-['Inter']">AI Carousel</span></div>
-        <span className="text-xs font-mono">{data.number} / {totalSlides}</span>
-      </div>
-      <div className="relative z-10 flex-1 flex flex-col justify-center">
-        <EditableText 
-          tagName="h2" 
-          className={`font-bold leading-tight tracking-tight font-['Inter'] ${isDark ? 'text-white' : 'text-zinc-900'} ${titleSize}`} 
-          value={data.title} onChange={(val: string) => onSlideChange('title', val)} readOnly={readOnly} theme={theme} 
-          styleOverride={{ color: overrides.titleColor || overrides.color, fontFamily: overrides.titleFontFamily }}
-          glowEnabled={overrides.titleGlow}
-          glowColor={overrides.titleColor}
-        />
-        {data.highlight && !isLast && (
-          <div className="mt-2"><span className={`inline-block px-3 py-1 mt-2 sm:mt-4 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider ${isDark ? 'bg-indigo-500/20 text-indigo-300' : 'bg-indigo-50 text-indigo-600'}`}><EditableText tagName="span" value={data.highlight} onChange={(val: string) => onSlideChange('highlight', val)} readOnly={readOnly} theme={theme} styleOverride={{ fontFamily: overrides.bodyFontFamily }} /></span></div>
-        )}
-        <div className={`font-medium leading-relaxed mt-4 font-['Inter'] text-sm sm:text-lg ${isDark ? 'text-zinc-400' : 'text-zinc-600'}`}>
-           <EditableText tagName="p" value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme} styleOverride={{ color: overrides.color, fontFamily: overrides.bodyFontFamily }} />
-        </div>
-      </div>
-      <div className="relative z-10 flex justify-between items-end mt-4 pt-4 border-t border-dashed border-opacity-20" style={{ borderColor: isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)' }}>
-        <div className="flex items-center gap-2">
-           <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isDark ? 'bg-zinc-800' : 'bg-gray-100'}`}><Highlighter size={14} className={isDark ? 'text-zinc-400' : 'text-zinc-500'} /></div>
-           <span className={`text-xs font-medium ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>{username}</span>
         </div>
       </div>
     </div>

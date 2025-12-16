@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateCarouselContent, regenerateSlideContent, generateSlideImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
-import { ThemePreview } from './components/ThemePreview';
 import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
 import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap, Magnet } from 'lucide-react';
 import { toPng } from 'html-to-image';
@@ -13,21 +12,21 @@ import saveAs from 'file-saver';
 const DEMO_SLIDES: SlideData[] = [
   {
     number: 1,
-    title: "CarouselKit",
+    title: "CAROUSEL KIT",
     content: "Создавайте вирусные карусели для Instagram за считанные секунды с помощью AI.",
-    highlight: "AI Power"
+    highlight: "AI POWER"
   },
   {
     number: 2,
-    title: "Настройки Слева",
-    content: "Управляйте темой, шрифтами и настроением контента в единой панели.",
-    highlight: "Удобство"
+    title: "НАСТРОЙКИ СЛЕВА",
+    content: "Управляйте стилем, шрифтами и настроением контента в единой панели.",
+    highlight: "УДОБСТВО"
   },
   {
     number: 3,
-    title: "Результат Справа",
+    title: "РЕЗУЛЬТАТ СПРАВА",
     content: "Смотрите превью в реальном времени на мокапе iPhone. Кликни на текст, чтобы изменить его.",
-    cta: "Попробуй сейчас"
+    cta: "ПОПРОБУЙ СЕЙЧАС"
   }
 ];
 
@@ -86,14 +85,6 @@ const GRADIENT_PRESETS = [
   { name: 'Lime Evergreen', value: 'linear-gradient(135deg, #8ED968, #103C1F)' },
   { name: 'Burgundy Sand', value: 'linear-gradient(135deg, #5C0E14, #F0E193)' },
   { name: 'Ocean Sky', value: 'linear-gradient(135deg, #2772A0, #CCDDEA)' },
-];
-
-const THEME_PRESETS = [
-  { id: Theme.AURORA_GREEN, label: 'Aurora', color: 'bg-emerald-800', textColor: 'text-white' },
-  { id: Theme.DARK_MODERN, label: 'Dark', color: 'bg-zinc-900', textColor: 'text-white' },
-  { id: Theme.MINIMAL_LIGHT, label: 'Light', color: 'bg-white border border-gray-200', textColor: 'text-black' },
-  { id: Theme.BOLD_NEON, label: 'Neon', color: 'bg-indigo-600', textColor: 'text-white' },
-  { id: Theme.RETRO_PAPER, label: 'Retro', color: 'bg-[#F5F5F0]', textColor: 'text-black' },
 ];
 
 const LEAD_MAGNETS = [
@@ -447,7 +438,9 @@ const App: React.FC = () => {
 
   const toneInfo = getToneLabel(toneValue);
   const currentSlideData = slides[activeSlideIndex];
-  
+  // Default style for current slide logic check
+  const currentStyle = slideStyles[currentSlideData.number] || {};
+
   // --- HELPER FOR RENDERING SLIDE ---
   const renderCurrentSlide = (isMobile: boolean) => (
       <SlideCard 
@@ -585,24 +578,6 @@ const App: React.FC = () => {
         Дизайн
       </div>
 
-      {/* Themes */}
-      <div className="space-y-3">
-        <label className="text-xs font-semibold text-slate-500 ml-1">Тема оформления</label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {THEME_PRESETS.map(t => (
-            <ThemePreview
-              key={t.id}
-              theme={t.id}
-              isSelected={config.theme === t.id}
-              onClick={() => {
-                setConfig(prev => ({ ...prev, theme: t.id }));
-                setSlideStyles({});
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
       {/* Fonts */}
       <div className="space-y-3">
         <label className="text-xs font-semibold text-slate-500 ml-1">Шрифты</label>
@@ -645,6 +620,53 @@ const App: React.FC = () => {
          </div>
       </div>
       
+      {/* Colors */}
+      <div className="space-y-3">
+        <label className="text-xs font-semibold text-slate-500 ml-1">Цвета текста</label>
+        
+        <div className="space-y-2">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Заголовок</span>
+          <div className="flex gap-2 flex-wrap">
+            <button 
+                onClick={() => updateGlobalStyle({ titleColor: '' })}
+                className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center hover:scale-110 transition-transform"
+                title="По умолчанию"
+            >
+                <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
+            </button>
+            {COLOR_PRESETS.map((c, i) => (
+               <button 
+                 key={i}
+                 className="w-6 h-6 rounded-full border border-black/10 hover:scale-110 transition-transform shadow-sm"
+                 style={{ backgroundColor: c }}
+                 onClick={() => updateGlobalStyle({ titleColor: c })}
+               />
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-[10px] text-slate-400 uppercase tracking-wide">Основной текст</span>
+          <div className="flex gap-2 flex-wrap">
+             <button 
+                onClick={() => updateGlobalStyle({ textColor: '' })}
+                className="w-6 h-6 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center hover:scale-110 transition-transform"
+                title="По умолчанию"
+            >
+                <div className="w-4 h-0.5 bg-slate-400 rotate-45" />
+            </button>
+            {COLOR_PRESETS.map((c, i) => (
+               <button 
+                 key={i}
+                 className="w-6 h-6 rounded-full border border-black/10 hover:scale-110 transition-transform shadow-sm"
+                 style={{ backgroundColor: c }}
+                 onClick={() => updateGlobalStyle({ textColor: c })}
+               />
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* Backgrounds */}
       <div className="space-y-3">
          <label className="text-xs font-semibold text-slate-500 ml-1">Фон слайда</label>
@@ -685,6 +707,21 @@ const App: React.FC = () => {
              Применить этот фон ко всем слайдам
           </button>
       </div>
+
+      {/* Neon Glow Toggle */}
+      <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100 mt-4">
+         <div className="flex items-center gap-2">
+            <Zap size={16} className="text-indigo-500" />
+            <label className="text-xs font-bold text-slate-700">Неоновое свечение (Заголовок)</label>
+         </div>
+         <button 
+           onClick={() => updateGlobalStyle({ titleGlow: !currentStyle.titleGlow })}
+           className={`w-10 h-5 rounded-full relative transition-colors duration-200 ${currentStyle.titleGlow ? 'bg-indigo-500' : 'bg-slate-300'}`}
+         >
+           <div className={`absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${currentStyle.titleGlow ? 'translate-x-5' : 'translate-x-0'}`} />
+         </button>
+      </div>
+
     </div>
   );
 
