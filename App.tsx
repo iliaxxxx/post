@@ -2,8 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { generateCarouselContent, regenerateSlideContent, generateSlideImage } from './services/geminiService';
 import { SlideCard } from './components/SlideCard';
 import { PhoneFrame } from './components/PhoneFrame';
-import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel } from './types';
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap, Magnet, Hash } from 'lucide-react';
+import { CarouselConfig, SlideData, Theme, Tone, SlideStyle, DEFAULT_STYLE, SavedCarousel, TextAlign } from './types';
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, Type, Palette, Download, Layers, RefreshCw, AtSign, ImagePlus, Copy, Trash2, X, Library, Save, Clock, Lightbulb, Plus, AlertCircle, LayoutTemplate, Share, Eye, Loader2, List, Grid2X2, ArrowUpRight, MessageSquare, Briefcase, Smile, Zap, Magnet, Hash, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import JSZip from 'jszip';
 import saveAs from 'file-saver';
@@ -607,6 +607,32 @@ const App: React.FC = () => {
             </div>
         </div>
         
+        {/* Alignment */}
+        <div className="space-y-1.5">
+             <label className="text-[10px] font-bold text-slate-500 uppercase">Выравнивание</label>
+             <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
+                {(['left', 'center', 'right'] as const).map((align) => {
+                   const currentAlign = slideStyles[slides[activeSlideIndex]?.number]?.textAlign || 'center';
+                   const isActive = currentAlign === align;
+                   return (
+                    <button
+                       key={align}
+                       onClick={() => updateGlobalStyle({ textAlign: align })}
+                       className={`flex-1 py-2 rounded-lg flex items-center justify-center transition-all ${
+                          isActive 
+                          ? 'bg-white shadow-sm text-purple-600 ring-1 ring-black/5' 
+                          : 'text-slate-400 hover:text-slate-600'
+                       }`}
+                    >
+                       {align === 'left' && <AlignLeft size={18} />}
+                       {align === 'center' && <AlignCenter size={18} />}
+                       {align === 'right' && <AlignRight size={18} />}
+                    </button>
+                   );
+                })}
+             </div>
+        </div>
+
         <div className="relative">
             <input 
               type="text" 

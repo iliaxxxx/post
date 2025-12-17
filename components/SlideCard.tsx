@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SlideData, Theme, SlideStyle, TextSize, TextAlign } from '../types';
-import { Heart, Send, Bookmark, ImagePlus, RefreshCw, Zap, Trash2, Wand2 } from 'lucide-react';
+import { ImagePlus, RefreshCw, Zap, Trash2, Wand2 } from 'lucide-react';
 
 interface SlideCardProps {
   data: SlideData;
@@ -284,9 +284,6 @@ const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideCha
       )}
 
       <div className="relative z-10 flex flex-col h-full">
-        <div className={`flex ${overrides.textAlign === 'center' ? 'justify-center' : overrides.textAlign === 'right' ? 'justify-end' : 'justify-start'} mb-4`}>
-          <span className="text-zinc-500 text-[10px] sm:text-[11px] uppercase tracking-widest font-medium opacity-80">{username}</span>
-        </div>
         <div className="flex-1 flex flex-col justify-center gap-3 sm:gap-4">
           <EditableText 
             tagName="h2" 
@@ -305,25 +302,11 @@ const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideCha
           </div>
         </div>
         
-        {/* FOOTER - ALIGNMENT FIX & MONOCHROME ICONS */}
-        <div className="mt-auto pt-4 pb-2 relative flex items-center justify-between w-full" style={{ color: overrides.color || 'inherit' }}>
-           {/* Left Icon */}
-           <div className="flex items-center justify-start z-10">
-              <Heart className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 opacity-90" strokeWidth={0} fill="currentColor" />
-           </div>
-           
-           {/* Center Text - Absolutely centered */}
-           <div className="absolute inset-x-0 flex justify-center items-center pointer-events-none">
-              <div className="text-[9px] sm:text-[10px] text-center leading-tight max-w-[160px] select-none font-medium opacity-75">
-                делись и сохрани,<br/>чтобы не потерять
-              </div>
-           </div>
-           
-           {/* Right Icons */}
-           <div className="flex items-center gap-4 justify-end z-10">
-             <Send className="w-5 h-5 sm:w-6 sm:h-6 -rotate-12 shrink-0 opacity-90" strokeWidth={2} />
-             <Bookmark className="w-6 h-6 sm:w-7 sm:h-7 shrink-0 opacity-90" strokeWidth={0} fill="currentColor" />
-           </div>
+        {/* FOOTER - ONLY USERNAME CENTERED */}
+        <div className="mt-auto pt-4 pb-2 flex justify-center items-center w-full" style={{ color: overrides.color || 'inherit' }}>
+          <span className="text-[10px] sm:text-[11px] uppercase tracking-widest font-medium opacity-60">
+            {username}
+          </span>
         </div>
       </div>
     </div>
