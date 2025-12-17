@@ -421,6 +421,7 @@ const App: React.FC = () => {
         totalSlides={slides.length}
         username={username}
         onSlideChange={handleContentChange}
+        onUsernameChange={setUsername}
         onRegenerate={() => handleRegenerateSlide(activeSlideIndex)}
         onUploadBg={() => fileInputRef.current?.click()}
         isRegenerating={loadingSlides[currentSlideData.number]}
@@ -462,6 +463,22 @@ const App: React.FC = () => {
               placeholder="Например: 5 способов..."
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all font-medium placeholder:text-slate-400"
             />
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Имя профиля</label>
+            <div className="relative">
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                    <AtSign size={16} />
+                </div>
+                <input 
+                type="text" 
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="@username"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all font-medium placeholder:text-slate-400"
+                />
+            </div>
           </div>
 
           <div className="space-y-2">

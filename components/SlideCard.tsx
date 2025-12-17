@@ -10,6 +10,7 @@ interface SlideCardProps {
   customBackground?: string | null;
   username: string;
   onSlideChange: (field: keyof SlideData, value: string) => void;
+  onUsernameChange?: (value: string) => void;
   readOnly?: boolean;
   className?: string;
   // New props for style overrides
@@ -254,7 +255,7 @@ const getOverrides = (customStyle?: SlideStyle) => {
 
 // --- STYLE COMPONENTS ---
 
-const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, readOnly, customStyle }) => {
+const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, onUsernameChange, readOnly, customStyle }) => {
   const overrides = getOverrides(customStyle);
   const titleSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'title') : 'text-2xl sm:text-3xl';
   const contentSize = (customStyle && customStyle.fontSize) ? getSizeClass(customStyle.fontSize, 'content') : 'text-sm sm:text-base';
@@ -302,11 +303,17 @@ const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideCha
           </div>
         </div>
         
-        {/* FOOTER - ONLY USERNAME CENTERED */}
+        {/* FOOTER - ONLY USERNAME CENTERED - NOW EDITABLE */}
         <div className="mt-auto pt-4 pb-2 flex justify-center items-center w-full" style={{ color: overrides.color || 'inherit' }}>
-          <span className="text-[10px] sm:text-[11px] uppercase tracking-widest font-medium opacity-60">
-            {username}
-          </span>
+           <EditableText 
+             tagName="div"
+             className="text-[10px] sm:text-[11px] uppercase tracking-widest font-medium opacity-60 text-center"
+             value={username}
+             onChange={(val) => onUsernameChange && onUsernameChange(val)}
+             readOnly={readOnly}
+             theme={theme}
+             styleOverride={{ color: overrides.color }}
+          />
         </div>
       </div>
     </div>
