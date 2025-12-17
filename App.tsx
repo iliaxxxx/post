@@ -904,7 +904,7 @@ const App: React.FC = () => {
                  onTouchEnd={onTouchEnd}
             >
                {/* Export Container (Hidden) */}
-               <div ref={exportRef} className="fixed left-[-9999px] top-0 flex gap-0 w-[360px] pointer-events-none opacity-0">
+               <div ref={exportRef} className="fixed left-[-9999px] top-0 flex flex-col pointer-events-none opacity-0">
                   {slides.map(slide => (
                      <SlideCard 
                        key={slide.number}
@@ -915,7 +915,7 @@ const App: React.FC = () => {
                        onSlideChange={() => {}}
                        readOnly={true}
                        customStyle={slideStyles[slide.number]}
-                       className="w-[360px] h-[450px]" // Fixed export size
+                       className="w-[360px] h-[450px] shrink-0" // Fixed export size
                      />
                   ))}
                </div>
