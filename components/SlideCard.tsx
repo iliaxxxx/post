@@ -37,7 +37,7 @@ const getBackgroundConfig = (bgImage: string | null | undefined, overrides: any)
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat',
-        textAlign: overrides.textAlign || undefined,
+        textAlign: overrides.textAlign || 'center',
         color: overrides.color,
     };
     if (bgImage) {
@@ -141,7 +141,7 @@ export const SlideCard: React.FC<SlideCardProps> = (props) => {
 const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideChange, onUsernameChange, readOnly, customStyle }) => {
   const isFirstSlide = data.number === 1;
   const overrides = {
-    textAlign: isFirstSlide ? 'center' : (customStyle?.textAlign || 'left'),
+    textAlign: customStyle?.textAlign || 'center',
     color: customStyle?.textColor,
     titleColor: customStyle?.titleColor,
     titleFontFamily: customStyle?.titleFontFamily,
@@ -161,10 +161,10 @@ const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideCha
       <div className="absolute inset-0 bg-black pointer-events-none z-0 transition-opacity duration-300" style={{ opacity: overrides.overlayOpacity }}></div>
 
       <div className="relative z-10 flex flex-col h-full">
-        <div className={`flex-1 flex flex-col ${isFirstSlide ? 'justify-center items-center' : 'justify-start mt-10'} gap-4`}>
+        <div className={`flex-1 flex flex-col justify-center items-center gap-4`}>
           <EditableText 
             tagName="h2" 
-            className={`font-bold leading-[1.2] tracking-tight uppercase ${isFirstSlide ? 'text-center' : ''}`} 
+            className={`font-bold leading-[1.2] tracking-tight uppercase text-center`} 
             value={data.title} 
             onChange={(val: string) => onSlideChange('title', val)} 
             readOnly={readOnly} 
@@ -173,18 +173,26 @@ const UnifiedCard: React.FC<any> = ({ data, theme, bgImage, username, onSlideCha
                 color: overrides.titleColor || overrides.color || 'white', 
                 fontFamily: overrides.titleFontFamily, 
                 fontSize: `${overrides.titleFontSize}px`,
-                width: '100%' 
+                width: '100%',
+                textAlign: overrides.textAlign
             }}
             glowEnabled={overrides.titleGlow}
             glowColor={overrides.titleColor}
           />
           
-          {!isFirstSlide && data.content && (
-            <div className="leading-relaxed text-zinc-300 opacity-90" style={{ fontFamily: overrides.bodyFontFamily, fontSize: '0.95rem' }}>
+          {data.content && (
+            <div className="leading-relaxed text-zinc-300 opacity-90 w-full" style={{ fontFamily: overrides.bodyFontFamily, fontSize: '0.95rem' }}>
               <EditableText 
                 tagName="div" 
-                value={data.content} onChange={(val: string) => onSlideChange('content', val)} readOnly={readOnly} theme={theme}
-                styleOverride={{ color: overrides.color || 'white', fontFamily: overrides.bodyFontFamily }}
+                value={data.content} 
+                onChange={(val: string) => onSlideChange('content', val)} 
+                readOnly={readOnly} 
+                theme={theme}
+                styleOverride={{ 
+                  color: overrides.color || 'white', 
+                  fontFamily: overrides.bodyFontFamily,
+                  textAlign: overrides.textAlign
+                }}
               />
             </div>
           )}
