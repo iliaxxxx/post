@@ -9,19 +9,19 @@ export enum Theme {
 }
 
 export enum Tone {
-  EXPERT = 'expert', // Экспертный, спокойный
-  PROVOCATIVE = 'provocative', // Дерзкий, с вызовом
-  VIRAL = 'viral', // Короткий, хайповый, для охватов
-  EMPATHETIC = 'empathetic', // Мягкий, поддерживающий
-  FUNNY = 'funny', // С юмором и иронией
+  EXPERT = 'expert',
+  PROVOCATIVE = 'provocative',
+  VIRAL = 'viral',
+  EMPATHETIC = 'empathetic',
+  FUNNY = 'funny',
 }
 
 export interface SlideData {
   number: number;
   title: string;
   content: string;
-  highlight?: string; // A key phrase or stat to emphasize
-  cta?: string; // Call to action (usually for last slide)
+  highlight?: string;
+  cta?: string;
 }
 
 export interface CarouselConfig {
@@ -36,37 +36,37 @@ export type TextSize = 'small' | 'medium' | 'large' | 'extra';
 
 export interface SlideStyle {
   fontSize: TextSize;
-  textColor: string; // Body text color
-  titleColor: string; // Header text color
-  titleGlow?: boolean; // Toggle for trendy glow effect
+  titleFontSize?: number;
+  textColor: string;
+  titleColor: string;
+  titleGlow?: boolean;
   textAlign: TextAlign;
-  fontFamily?: string; // Fallback / Global override
-  titleFontFamily?: string; // Specific font for headers
-  bodyFontFamily?: string; // Specific font for content
+  fontFamily?: string;
+  titleFontFamily?: string;
+  bodyFontFamily?: string;
   backgroundType: 'solid' | 'gradient' | 'image';
-  backgroundValue: string; // Color code, gradient string, or image URL
-  overlayOpacity: number; // 0-1 (Dimming)
+  backgroundValue: string;
+  overlayOpacity: number;
 }
 
 export const DEFAULT_STYLE: SlideStyle = {
   fontSize: 'medium',
-  textColor: '', // Empty means use Theme default (CSS classes)
-  titleColor: '', // Empty means use Theme default (CSS classes)
+  titleFontSize: 28, // Even more neat default size
+  textColor: '',
+  titleColor: '',
   titleGlow: false,
   textAlign: 'center',
   backgroundType: 'solid',
-  backgroundValue: '', // Empty means use Theme default
-  overlayOpacity: 0.2, // Default slight overlay
+  backgroundValue: '',
+  overlayOpacity: 0.2,
 };
 
 export interface SavedCarousel {
   id: string;
   timestamp: number;
-  topic: string; // Used as title in library
+  topic: string;
   slides: SlideData[];
   styles: Record<number, SlideStyle>;
   username: string;
   config: CarouselConfig;
 }
-
-export type EditorTab = 'text' | 'image' | 'background';
